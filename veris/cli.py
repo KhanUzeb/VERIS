@@ -39,7 +39,7 @@ def _git_sha() -> str | None:
 
 @click.group()
 def cli():
-    """Veris - regression gate for LLM/agent systems (DeepEval + RAGAS + Langfuse)."""
+    """Veris - local regression gate for LLM/agent systems (DeepEval + RAGAS + Langfuse)."""
 
 
 @cli.command()
@@ -285,8 +285,8 @@ def cache_clear():
 @click.option("--dataset-dir", default=None, help="defaults to SETTINGS.golden_dataset_dir")
 def validate(dataset_dir):
     """Check the golden dataset for schema errors and duplicate ids.
-    Makes zero LLM calls — safe to run in a pre-commit hook or while
-    authoring new test cases without burning judge-model budget."""
+    Makes zero LLM calls — safe while authoring new test cases
+    without burning judge-model budget."""
     from .golden_dataset import load_golden_cases
 
     target_dir = dataset_dir or SETTINGS.golden_dataset_dir

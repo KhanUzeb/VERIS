@@ -76,7 +76,7 @@ class Settings:
     # dead endpoint, not per-case flakiness) rather than silently burning
     # through the rest of the budget with every remaining case scored as 0.
 
-    # --- Metrics (blocking = fails CI, advisory = reported but doesn't block) ---
+    # --- Metrics (blocking = fails the run, advisory = reported but doesn't block) ---
     metrics: tuple = field(default_factory=lambda: (
         MetricSpec(
             "faithfulness", blocking=True, min_score=0.75, weight=1.5,

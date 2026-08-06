@@ -6,7 +6,7 @@ changed since the last run, the judge call is skipped entirely and the
 cached score is reused.
 
 This matters because the judge model is an LLM call per metric per case.
-At 100+ cases × 7 metrics, re-running the full suite on every commit for
+At 100+ cases × 7 metrics, re-running the full suite every time for
 cases whose target output didn't change is pure waste — both latency and
 $ cost. Cache invalidates automatically the moment any input to the score
 changes, including MetricSpec config edits via metrics_fingerprint().

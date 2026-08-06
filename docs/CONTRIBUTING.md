@@ -33,7 +33,7 @@ make dry-run    # plan cases without judging
 
 1. Add an entry under `golden_dataset/*.yaml` with a unique `id`.
 2. Run `veris validate` and `veris list-cases`.
-3. Prefer tags so CI can run focused subsets (`--tags …`).
+3. Prefer tags so you can run focused subsets (`--tags …`).
 
 ## Adding a metric
 

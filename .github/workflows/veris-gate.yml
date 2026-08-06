@@ -1,10 +1,9 @@
+# Optional — does NOT run on push, PR, or commit.
+# Trigger manually: GitHub → Actions → veris-gate → Run workflow
 name: veris-gate
 
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   unit-tests:
@@ -38,7 +37,7 @@ jobs:
         run: pip install -r requirements.txt
 
       # Restores veris_trends.db between runs so the regression
-      # baseline persists across PRs instead of resetting every time.
+      # baseline persists across manual runs instead of resetting every time.
       - name: Restore trend store
         uses: actions/cache@v4
         with:

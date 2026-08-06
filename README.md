@@ -1,17 +1,16 @@
 # Veris
 
-**Veris** is a CI regression gate for LLM and agent systems.
+**Veris** is a local regression checker for LLM and agent systems.
 
 It runs a golden dataset against your target, scores outputs with DeepEval and
 RAGAS, compares results to a rolling SQLite baseline, and exits non-zero when
-quality regresses — so merges and deploys can be blocked automatically.
+quality regresses. You run it when you want — nothing fires on commit or push.
 
-Veris is a **gate**, not a dashboard. It answers four questions:
+Veris is a **gate**, not a dashboard. It answers three questions:
 
 1. Did quality regress vs the last known-good baseline?
 2. Is this a real regression or judge-model noise?
-3. What is the trend over the last N deploys?
-4. Can this run unattended in CI and actually block a merge?
+3. What is the trend over recent runs?
 
 ## Architecture
 
@@ -37,7 +36,7 @@ veris.langfuse_tracker         # optional traces + per-metric scores
 veris.report                   # Rich terminal + JSON / HTML / CSV
         │
         ▼
-   exit 0 / 1  ──► CI gate
+   exit 0 / 1  ──► pass / fail (local or optional CI)
 ```
 
 More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
@@ -75,7 +74,7 @@ Wire your real system by replacing `veris.targets.my_agent_fn` with any
 | `veris run --csv-out path` | Also write a flat CSV report |
 | `veris list-cases` | Cases, tags, applicable blocking metrics |
 | `veris baseline` | Rolling median/stdev per case+metric |
-| `veris validate` | Schema / duplicate-id check (pre-commit safe) |
+| `veris validate` | Schema / duplicate-id check (no LLM calls) |
 | `veris trend` / `veris diff` | History and case-by-case score deltas |
 | `veris usage` | Judge token / cost history |
 | `veris cache-stats` / `cache-clear` | Score-cache management |
@@ -141,16 +140,18 @@ A metric blocks the run when either:
 
 Advisory metrics are recorded and shown but do not flip the exit code.
 
-## CI
+## Optional CI (manual only)
 
-[`.github/workflows/veris-gate.yml`](.github/workflows/veris-gate.yml):
+CI is **off by default**. Commits and pushes do not trigger anything.
 
-1. Runs unit tests on every PR / push to `main`
-2. Runs the live gate when `GROQ_API_KEY` is set; uploads JSON/HTML/CSV artifacts
-3. Caches `veris_trends.db` so baselines persist across PRs
+If you want GitHub Actions later, [`.github/workflows/veris-gate.yml`](.github/workflows/veris-gate.yml)
+is wired for **manual** runs only (`workflow_dispatch`):
 
-Seed once on `main` (`make seed`) so fresh branches inherit regression
-sensitivity via cache `restore-keys`.
+1. Open **Actions → veris-gate → Run workflow**
+2. Unit tests always run; the live gate runs only when `GROQ_API_KEY` is set
+3. Reports upload as artifacts; trend DBs are cached across manual runs
+
+Day to day, prefer local commands: `make test`, `make run`, `make seed`.
 
 ## Docker
 

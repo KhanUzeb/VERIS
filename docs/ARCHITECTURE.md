@@ -1,7 +1,7 @@
 # Architecture
 
-Veris is a **CI regression gate**: golden cases → target execution → LLM-as-judge
-scoring → baseline comparison → pass/fail exit code.
+Veris is a **local regression gate** (CI optional): golden cases → target execution
+→ LLM-as-judge scoring → baseline comparison → pass/fail exit code.
 
 ## Pipeline
 
@@ -48,7 +48,7 @@ scoring → baseline comparison → pass/fail exit code.
 | `veris.golden_dataset` | YAML loader |
 | `veris.config` | All thresholds (`MetricSpec`, `Settings`) |
 | `veris.flakiness` | `--repeat N` spread analysis |
-| `veris.targets` | Stub target for local / CI smoke |
+| `veris.targets` | Stub target for local smoke / seed |
 
 ## Gate semantics
 
