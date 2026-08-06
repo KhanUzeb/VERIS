@@ -1,0 +1,13 @@
+deepeval>=2.0.0
+ragas>=0.2.0
+datasets>=2.19.0
+langfuse>=2.36.0
+langchain-core>=0.3.0
+pydantic>=2.7.0
+pyyaml>=6.0
+rich>=13.7.0
+click>=8.1.0
+groq>=0.9.0
+openai>=1.30.0
+python-dotenv>=1.0.0
+tenacity>=8.2.0
