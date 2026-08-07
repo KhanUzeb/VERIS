@@ -11,10 +11,11 @@ def _build_ragas_llm(judge: GroqEvalModel):
     Passing GroqEvalModel (a DeepEval wrapper) directly to evaluate() is not
     supported and fails at runtime."""
     try:
-        from langchain_core.language_models.llms import LLM
+        from typing import Any
+
         from langchain_core.callbacks.manager import CallbackManagerForLLMRun
+        from langchain_core.language_models.llms import LLM
         from ragas.llms import LangchainLLMWrapper
-        from typing import Any, Optional
 
         class _JudgeLangChainLLM(LLM):
             """Thin LangChain LLM around the shared judge."""
@@ -26,8 +27,8 @@ def _build_ragas_llm(judge: GroqEvalModel):
             def _call(
                 self,
                 prompt: str,
-                stop: Optional[list[str]] = None,
-                run_manager: Optional[CallbackManagerForLLMRun] = None,
+                stop: list[str] | None = None,
+                run_manager: CallbackManagerForLLMRun | None = None,
                 **kwargs: Any,
             ) -> str:
                 return judge.generate(prompt)
@@ -37,8 +38,8 @@ def _build_ragas_llm(judge: GroqEvalModel):
         pass
 
     # Fallback: implement BaseRagasLLM directly.
-    from ragas.llms.base import BaseRagasLLM
     from langchain_core.outputs import Generation, LLMResult
+    from ragas.llms.base import BaseRagasLLM
 
     class _JudgeRagasLLM(BaseRagasLLM):
         def generate_text(self, prompt, n: int = 1, temperature: float = 0.01,
@@ -62,6 +63,24 @@ def _build_ragas_llm(judge: GroqEvalModel):
                 return False
 
     return _JudgeRagasLLM()
+
+
+def _build_ragas_embeddings():
+    """Local sentence-transformers embeddings for RAGAS metrics that need them.
+
+    answer_correctness blends an LLM factual-overlap score with an embedding
+    semantic-similarity score. Without embeddings=, ragas.evaluate() silently
+    defaults to OpenAI embeddings (OPENAI_API_KEY). Keep this fully local —
+    no API key — to match the project's Groq/self-hosted design.
+
+    Use ragas' native HuggingFaceEmbeddings (not LangchainEmbeddingsWrapper):
+    on ragas>=0.4 the LangChain wrapper is deprecated, and ragas' modern
+    OpenAIEmbeddings mis-detects sync clients and raises on aembed_text
+    inside answer_correctness. The native HF provider implements both
+    embed_text and aembed_text against sentence-transformers locally."""
+    from ragas.embeddings import HuggingFaceEmbeddings
+
+    return HuggingFaceEmbeddings(model="sentence-transformers/all-MiniLM-L6-v2")
 
 
 def score_ragas(case, actual_output: str) -> dict[str, float]:
@@ -97,11 +116,12 @@ def score_ragas(case, actual_output: str) -> dict[str, float]:
 
     judge = GroqEvalModel()
     llm = _build_ragas_llm(judge)
+    embeddings = _build_ragas_embeddings()
     metrics = [context_precision, context_recall]
     if case.expected_output:
         metrics.append(answer_correctness)
 
-    result = evaluate(ds, metrics=metrics, llm=llm)
+    result = evaluate(ds, metrics=metrics, llm=llm, embeddings=embeddings)
     df = result.to_pandas()
     out: dict[str, float] = {}
     for m in ("context_precision", "context_recall", "answer_correctness"):

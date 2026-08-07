@@ -48,14 +48,14 @@ Veris is a **local regression gate** (CI optional): golden cases → target exec
 | `veris.golden_dataset` | YAML loader |
 | `veris.config` | All thresholds (`MetricSpec`, `Settings`) |
 | `veris.flakiness` | `--repeat N` spread analysis |
-| `veris.targets` | Stub target for local smoke / seed |
+| `veris.targets` | OpenAI-compatible target (stream + timeout + one transient retry) |
 
 ## Gate semantics
 
 Two independent checks per applicable `(case, metric)`:
 
 1. **Absolute floor** — `score < MetricSpec.min_score` always fails (blocking metrics only flip the exit code).
-2. **Regression** — if enough green history exists, fail when score falls more than `band * stdev` below the case’s rolling median (flat baselines use `0.9 * median`).
+2. **Regression** — if enough green history exists, fail when score falls more than `band * stdev` below the case’s rolling median. Flat baselines (`stdev == 0`) use a synthetic relative stdev so `stdev_band_override` still applies; at the default band the floor is `0.9 * median`.
 
 Metrics with `requires_retrieval_context` / `requires_expected_output` that the case cannot satisfy are marked **N/A** and never treated as missing blocking scores.
 

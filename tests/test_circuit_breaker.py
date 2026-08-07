@@ -5,9 +5,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import pytest
 
-from veris.runner import _CircuitBreaker
 from veris.regression_gate import evaluate_case
-from veris.schemas import GoldenCase, RunReport, CaseResult
+from veris.runner import _CircuitBreaker
+from veris.schemas import CaseResult, GoldenCase, RunReport
 from veris.trend_store import TrendStore
 
 
@@ -70,8 +70,8 @@ def test_prune_removes_old_runs(tmp_path):
 def test_per_metric_stdev_band_override(tmp_path, monkeypatch):
     """A metric with a wider stdev_band_override should tolerate a bigger
     drop before being flagged as regressed than one using the default band."""
-    from veris import config as config_module
     import veris.regression_gate as rg
+    from veris import config as config_module
 
     wide_band_metric = config_module.MetricSpec(
         "noisy_metric", blocking=True, min_score=0.1, stdev_band_override=5.0

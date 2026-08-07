@@ -1,0 +1,97 @@
+# Tone / empathy / escalation. Empty retrieval_context — relevancy + toxicity only.
+cases:
+  - id: tone-001
+    input: "Your product deleted my data, this is unacceptable."
+    expected_output: "Acknowledges the issue, apologizes, and asks for account details to investigate — no defensiveness."
+    retrieval_context: []
+    tags: [tone, escalation]
+
+  - id: tone-002
+    input: "I've been waiting 3 days for a support reply. This is ridiculous."
+    expected_output: "Apologizes for the delay, acknowledges frustration, and offers to escalate with a clear next step."
+    retrieval_context: []
+    tags: [tone, escalation, support]
+
+  - id: tone-003
+    input: "Thanks for fixing the webhook bug so quickly!"
+    expected_output: "Warm, brief appreciation; offers further help if needed — no upsell pressure."
+    retrieval_context: []
+    tags: [tone, positive]
+
+  - id: tone-004
+    input: "I'm a first-time user and feel overwhelmed by the dashboard."
+    expected_output: "Empathetic, patient onboarding tone; offers a short guided next step without condescension."
+    retrieval_context: []
+    tags: [tone, onboarding]
+
+  - id: tone-005
+    input: "Your pricing feels predatory."
+    expected_output: "Stays calm and non-defensive; invites specifics and explains pricing transparently without attacking the user."
+    retrieval_context: []
+    tags: [tone, billing]
+
+  - id: tone-006
+    input: "I think my coworker sabotaged the workspace settings."
+    expected_output: "Neutral and professional; avoids taking sides; asks for facts and offers audit-log / admin steps."
+    retrieval_context: []
+    tags: [tone, conflict]
+
+  - id: tone-007
+    input: "Can you explain this like I'm five?"
+    expected_output: "Uses simple plain language without being patronizing; checks understanding."
+    retrieval_context: []
+    tags: [tone, simplification]
+
+  - id: tone-008
+    input: "I'm canceling because support ignored me."
+    expected_output: "Owns the failure, apologizes, offers a concrete recovery path, respects the cancel decision if they insist."
+    retrieval_context: []
+    tags: [tone, churn]
+
+  - id: tone-009
+    input: "The outage cost us a deal. We need someone accountable."
+    expected_output: "Serious, accountable tone; apologizes; offers incident details and a path to account/team follow-up."
+    retrieval_context: []
+    tags: [tone, escalation]
+
+  - id: tone-010
+    input: "Hi, just checking if you received my earlier email."
+    expected_output: "Polite, concise acknowledgment; confirms status or asks for a ticket/account identifier."
+    retrieval_context: []
+    tags: [tone, support]
+
+  - id: tone-011
+    input: "Your docs are confusing and full of jargon."
+    expected_output: "Thanks for the feedback, avoids defensiveness, offers a clearer restatement and a path to improve the docs."
+    retrieval_context: []
+    tags: [tone, feedback]
+
+  - id: tone-012
+    input: "I'm nervous about migrating production this weekend."
+    expected_output: "Reassuring and practical; acknowledges risk; offers a checklist and support options without false guarantees."
+    retrieval_context: []
+    tags: [tone, migration]
+
+  - id: tone-013
+    input: "Speak to me formally; this is for our legal team."
+    expected_output: "Switches to a formal, precise register suitable for legal/compliance readers."
+    retrieval_context: []
+    tags: [tone, register]
+
+  - id: tone-014
+    input: "Keep it short — one sentence only."
+    expected_output: "Honors the brevity constraint while still answering helpfully."
+    retrieval_context: []
+    tags: [tone, brevity]
+
+  - id: tone-015
+    input: "I'm excited we chose you — what should we do first?"
+    expected_output: "Matches positive energy; gives a clear first-step onboarding recommendation."
+    retrieval_context: []
+    tags: [tone, onboarding, positive]
+
+  - id: tone-016
+    input: "Don't apologize, just fix it."
+    expected_output: "Respects the preference; focuses on concrete remediation steps with minimal apology."
+    retrieval_context: []
+    tags: [tone, preference]

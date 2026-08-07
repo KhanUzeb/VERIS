@@ -1,0 +1,161 @@
+# Retrieval / grounded-QA cases. Prefer non-empty retrieval_context so
+# faithfulness, hallucination, and RAGAS metrics apply.
+cases:
+  - id: retrieval-001
+    input: "What is the refund window for annual plans?"
+    expected_output: "Annual plans can be refunded within 30 days of purchase."
+    retrieval_context:
+      - "Our refund policy: annual subscriptions are refundable within 30 days of the purchase date. Monthly plans are non-refundable."
+    tags: [retrieval, billing]
+
+  - id: retrieval-002
+    input: "Can I get a refund on a monthly plan after 10 days?"
+    expected_output: "No, monthly plans are non-refundable."
+    retrieval_context:
+      - "Our refund policy: annual subscriptions are refundable within 30 days of the purchase date. Monthly plans are non-refundable."
+    tags: [retrieval, billing, edge-case]
+
+  - id: retrieval-003
+    input: "What is the Free plan project limit?"
+    expected_output: "3"
+    retrieval_context:
+      - "Free tier includes dashboard access and up to 3 projects. API access requires Pro or higher."
+    tags: [retrieval, numeric, plans]
+
+  - id: retrieval-004
+    input: "Does the free tier include API access?"
+    expected_output: "No, API access is not included in the free tier."
+    retrieval_context:
+      - "Free tier includes dashboard access and up to 3 projects. API access requires Pro or higher."
+    tags: [retrieval, plans]
+
+  - id: retrieval-005
+    input: "What is the Pro plan project limit?"
+    expected_output: "Pro allows up to 50 projects."
+    retrieval_context:
+      - "Pro plan: API access, up to 50 projects, email support, 100 requests/minute."
+    tags: [retrieval, plans, numeric]
+
+  - id: retrieval-006
+    input: "What is the API rate limit on Pro?"
+    expected_output: "100 requests per minute."
+    retrieval_context:
+      - "Pro plan: API access, up to 50 projects, email support, 100 requests/minute."
+      - "Enterprise plan: unlimited projects, SSO, audit logs, dedicated support, 1000 requests/minute."
+    tags: [retrieval, api, numeric]
+
+  - id: retrieval-007
+    input: "What is the Enterprise API rate limit?"
+    expected_output: "1000 requests per minute."
+    retrieval_context:
+      - "Enterprise plan: unlimited projects, SSO, audit logs, dedicated support, 1000 requests/minute."
+    tags: [retrieval, api, plans]
+
+  - id: retrieval-008
+    input: "Does the enterprise plan include the feature mentioned in the March changelog?"
+    expected_output: "Yes — SSO (added in the March changelog) is included in the enterprise plan."
+    retrieval_context:
+      - "March changelog: added SSO support for all workspace members."
+      - "Enterprise plan includes: SSO, audit logs, and dedicated support."
+    tags: [retrieval, multi-hop, plans]
+
+  - id: retrieval-009
+    input: "Which regions can I deploy to?"
+    expected_output: "us-east and eu-west."
+    retrieval_context:
+      - "Supported deployment regions: us-east and eu-west. Asia-Pacific is on the roadmap."
+    tags: [retrieval, infra]
+
+  - id: retrieval-010
+    input: "How long is data retained on the free tier?"
+    expected_output: "90 days."
+    retrieval_context:
+      - "Data retention: Free 90 days, Pro 1 year, Enterprise custom (up to 7 years)."
+    tags: [retrieval, retention, numeric]
+
+  - id: retrieval-011
+    input: "How long is Pro data retained?"
+    expected_output: "1 year."
+    retrieval_context:
+      - "Data retention: Free 90 days, Pro 1 year, Enterprise custom (up to 7 years)."
+    tags: [retrieval, retention]
+
+  - id: retrieval-012
+    input: "What support channel does Pro get?"
+    expected_output: "Email support."
+    retrieval_context:
+      - "Pro plan: API access, up to 50 projects, email support, 100 requests/minute."
+      - "Enterprise plan includes: SSO, audit logs, and dedicated support."
+    tags: [retrieval, support]
+
+  - id: retrieval-013
+    input: "Is SSO available on Pro?"
+    expected_output: "No, SSO is an Enterprise feature."
+    retrieval_context:
+      - "Enterprise plan includes: SSO, audit logs, and dedicated support."
+      - "Pro plan: API access, up to 50 projects, email support, 100 requests/minute."
+    tags: [retrieval, plans, security]
+
+  - id: retrieval-014
+    input: "What authentication methods does Enterprise support?"
+    expected_output: "SSO via SAML 2.0 and OIDC, plus email/password."
+    retrieval_context:
+      - "Enterprise authentication: SAML 2.0 and OIDC single sign-on, in addition to standard email/password."
+    tags: [retrieval, security]
+
+  - id: retrieval-015
+    input: "What is the maximum webhook retries before we give up?"
+    expected_output: "5 retries over 24 hours, then the delivery is marked failed."
+    retrieval_context:
+      - "Webhook delivery retries up to 5 times with exponential backoff within 24 hours. After that the event is marked failed and available in the dead-letter queue."
+    tags: [retrieval, api]
+
+  - id: retrieval-016
+    input: "Where can I find failed webhook events?"
+    expected_output: "In the dead-letter queue."
+    retrieval_context:
+      - "Webhook delivery retries up to 5 times with exponential backoff within 24 hours. After that the event is marked failed and available in the dead-letter queue."
+    tags: [retrieval, api]
+
+  - id: retrieval-017
+    input: "What currency is billing in?"
+    expected_output: "USD."
+    retrieval_context:
+      - "All prices are listed and billed in USD. Local sales tax or VAT may apply based on billing address."
+    tags: [retrieval, billing]
+
+  - id: retrieval-018
+    input: "Does pricing include tax?"
+    expected_output: "Listed prices are pre-tax; local sales tax or VAT may apply based on billing address."
+    retrieval_context:
+      - "All prices are listed and billed in USD. Local sales tax or VAT may apply based on billing address."
+    tags: [retrieval, billing]
+
+  - id: retrieval-019
+    input: "What is the Pro monthly price?"
+    expected_output: "$49 per month."
+    retrieval_context:
+      - "Pricing: Free $0, Pro $49/month or $490/year, Enterprise custom quote."
+    tags: [retrieval, billing, numeric]
+
+  - id: retrieval-020
+    input: "How much is Pro billed annually?"
+    expected_output: "$490 per year."
+    retrieval_context:
+      - "Pricing: Free $0, Pro $49/month or $490/year, Enterprise custom quote."
+    tags: [retrieval, billing]
+
+  - id: retrieval-021
+    input: "Can I export audit logs on Enterprise?"
+    expected_output: "Yes, Enterprise includes audit logs that can be exported."
+    retrieval_context:
+      - "Enterprise plan includes: SSO, audit logs, and dedicated support."
+      - "Audit logs can be exported as CSV or streamed to your SIEM via the Audit API."
+    tags: [retrieval, security, multi-hop]
+
+  - id: retrieval-022
+    input: "What export formats are available for audit logs?"
+    expected_output: "CSV export, or stream to a SIEM via the Audit API."
+    retrieval_context:
+      - "Audit logs can be exported as CSV or streamed to your SIEM via the Audit API."
+    tags: [retrieval, security]

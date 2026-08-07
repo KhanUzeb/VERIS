@@ -18,7 +18,6 @@ require deepeval to be installed just to import the package.
 """
 from __future__ import annotations
 
-import json
 import threading
 
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -163,11 +162,3 @@ class GroqEvalModel(_deepeval_base()):
 
     def get_model_name(self) -> str:
         return f"{self.provider}/{self.model_name}"
-
-
-def judge_json(prompt: str, model: GroqEvalModel | None = None) -> dict:
-    """Helper for metrics that need structured judge output."""
-    model = model or GroqEvalModel()
-    raw = model.generate(prompt + "\n\nRespond ONLY with valid JSON, no prose.")
-    cleaned = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-    return json.loads(cleaned)

@@ -7,9 +7,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import veris.runner as runner
 from veris.schemas import GoldenCase
 from veris.trend_store import TrendStore
-import veris.runner as runner
 
 
 def test_circuit_breaker_abort_persists_run_and_closes(tmp_path, monkeypatch):

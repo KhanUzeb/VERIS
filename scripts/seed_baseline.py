@@ -13,8 +13,8 @@ import sys
 
 sys.path.insert(0, ".")
 
-from veris.runner import run_gate  # noqa: E402
 from veris.report import print_report  # noqa: E402
+from veris.runner import run_gate  # noqa: E402
 
 
 def resolve(dotted):

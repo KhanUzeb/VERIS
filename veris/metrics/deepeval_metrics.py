@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from deepeval.metrics import (
-    FaithfulnessMetric,
     AnswerRelevancyMetric,
+    FaithfulnessMetric,
     HallucinationMetric,
     ToxicityMetric,
 )

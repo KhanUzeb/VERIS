@@ -61,8 +61,10 @@ veris run --target veris.targets:my_agent_fn --dry-run
 veris run --target veris.targets:my_agent_fn
 ```
 
-Wire your real system by replacing `veris.targets.my_agent_fn` with any
-`Callable[[str], str]` (LangGraph, HTTP client, etc.).
+`veris.targets.my_agent_fn` calls an OpenAI-compatible Chat Completions
+endpoint (streamed, 30s timeout, one retry on connection/5xx errors).
+Configure via `TARGET_PROVIDER` / `TARGET_MODEL` / `TARGET_BASE_URL`
+(see `.env.example`), or replace the callable with any `Callable[[str], str]`.
 
 ## CLI reference
 
@@ -111,7 +113,16 @@ Context-free cases (safety / tone / clarification) are gated on
 
 ## Golden dataset
 
-See [`golden_dataset/sample_cases.yaml`](golden_dataset/sample_cases.yaml).
+Cases live under [`golden_dataset/`](golden_dataset/), split by focus:
+
+| File | Focus |
+|------|--------|
+| `retrieval.yaml` | Grounded QA / multi-hop |
+| `reasoning.yaml` | Policy & plan reasoning |
+| `safety.yaml` | Refusals / jailbreaks |
+| `tone.yaml` | Empathy / register |
+| `edge_cases.yaml` | Hallucination, negation, ambiguity |
+
 Add more `*.yaml` / `*.yml` files; the loader globs the directory. Each case
 supports tags for subset runs:
 

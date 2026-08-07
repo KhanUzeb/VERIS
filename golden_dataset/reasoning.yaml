@@ -1,0 +1,139 @@
+# Multi-step / policy reasoning over retrieved facts.
+cases:
+  - id: reasoning-001
+    input: "If a user upgrades from monthly to annual mid-cycle, when does billing reset?"
+    expected_output: "Billing resets to the annual cycle on the date of the upgrade, prorated for the remaining monthly days."
+    retrieval_context:
+      - "Mid-cycle plan changes are prorated. Upgrading from monthly to annual immediately starts the new annual cycle, crediting unused monthly days."
+    tags: [reasoning, billing]
+
+  - id: reasoning-002
+    input: "A Free user needs API access tomorrow. What is the minimum plan change required?"
+    expected_output: "Upgrade to Pro (or Enterprise); Free has no API access."
+    retrieval_context:
+      - "Free tier includes dashboard access and up to 3 projects. API access requires Pro or higher."
+      - "Pro plan: API access, up to 50 projects, email support, 100 requests/minute."
+    tags: [reasoning, plans]
+
+  - id: reasoning-003
+    input: "I am on Pro and need SSO for compliance. Do I have to change plans?"
+    expected_output: "Yes — SSO is Enterprise-only, so you must upgrade to Enterprise."
+    retrieval_context:
+      - "Enterprise plan includes: SSO, audit logs, and dedicated support."
+      - "Pro plan: API access, up to 50 projects, email support, 100 requests/minute."
+    tags: [reasoning, security, plans]
+
+  - id: reasoning-004
+    input: "If I buy Pro annual today and cancel in 10 days, can I get a refund?"
+    expected_output: "Yes — annual plans are refundable within 30 days of purchase."
+    retrieval_context:
+      - "Our refund policy: annual subscriptions are refundable within 30 days of the purchase date. Monthly plans are non-refundable."
+    tags: [reasoning, billing]
+
+  - id: reasoning-005
+    input: "If I buy Pro monthly today and cancel in 10 days, can I get a refund?"
+    expected_output: "No — monthly plans are non-refundable."
+    retrieval_context:
+      - "Our refund policy: annual subscriptions are refundable within 30 days of the purchase date. Monthly plans are non-refundable."
+    tags: [reasoning, billing]
+
+  - id: reasoning-006
+    input: "A Free workspace already has 3 projects. What happens if they try to create a fourth?"
+    expected_output: "They must upgrade or delete a project; Free is capped at 3 projects."
+    retrieval_context:
+      - "Free tier includes dashboard access and up to 3 projects. API access requires Pro or higher."
+    tags: [reasoning, plans]
+
+  - id: reasoning-007
+    input: "Will moving from Pro monthly to Pro annual change my rate limit?"
+    expected_output: "No — Pro rate limits stay at 100 requests/minute whether billed monthly or annually."
+    retrieval_context:
+      - "Pro plan: API access, up to 50 projects, email support, 100 requests/minute."
+      - "Pricing: Free $0, Pro $49/month or $490/year, Enterprise custom quote."
+    tags: [reasoning, api, billing]
+
+  - id: reasoning-008
+    input: "I need 7-year retention and SSO. Which plan?"
+    expected_output: "Enterprise — custom retention up to 7 years and SSO are Enterprise features."
+    retrieval_context:
+      - "Data retention: Free 90 days, Pro 1 year, Enterprise custom (up to 7 years)."
+      - "Enterprise plan includes: SSO, audit logs, and dedicated support."
+    tags: [reasoning, retention, security]
+
+  - id: reasoning-009
+    input: "After 5 failed webhook deliveries, what should an engineer do next?"
+    expected_output: "Inspect the dead-letter queue for the failed events and fix the endpoint before replaying."
+    retrieval_context:
+      - "Webhook delivery retries up to 5 times with exponential backoff within 24 hours. After that the event is marked failed and available in the dead-letter queue."
+    tags: [reasoning, api]
+
+  - id: reasoning-010
+    input: "A customer in Germany is quoted $49 for Pro. Will their invoice be exactly $49?"
+    expected_output: "Not necessarily — prices are in USD before tax; local VAT may be added based on billing address."
+    retrieval_context:
+      - "All prices are listed and billed in USD. Local sales tax or VAT may apply based on billing address."
+      - "Pricing: Free $0, Pro $49/month or $490/year, Enterprise custom quote."
+    tags: [reasoning, billing]
+
+  - id: reasoning-011
+    input: "Can a Pro customer stream audit logs to a SIEM without upgrading?"
+    expected_output: "No — audit log export/streaming is part of Enterprise."
+    retrieval_context:
+      - "Enterprise plan includes: SSO, audit logs, and dedicated support."
+      - "Audit logs can be exported as CSV or streamed to your SIEM via the Audit API."
+      - "Pro plan: API access, up to 50 projects, email support, 100 requests/minute."
+    tags: [reasoning, security]
+
+  - id: reasoning-012
+    input: "If Asia-Pacific is not a supported region yet, where can a Tokyo customer deploy today?"
+    expected_output: "us-east or eu-west; Asia-Pacific is only on the roadmap."
+    retrieval_context:
+      - "Supported deployment regions: us-east and eu-west. Asia-Pacific is on the roadmap."
+    tags: [reasoning, infra]
+
+  - id: reasoning-013
+    input: "A team on Free needs email support for an outage. What should they do?"
+    expected_output: "Upgrade to Pro for email support, or to Enterprise for dedicated support."
+    retrieval_context:
+      - "Free tier includes dashboard access and up to 3 projects. API access requires Pro or higher."
+      - "Pro plan: API access, up to 50 projects, email support, 100 requests/minute."
+      - "Enterprise plan includes: SSO, audit logs, and dedicated support."
+    tags: [reasoning, support]
+
+  - id: reasoning-014
+    input: "Is paying annually for Pro cheaper than 12 monthly payments?"
+    expected_output: "Yes — annual Pro is $490 vs $588 for 12×$49 monthly."
+    retrieval_context:
+      - "Pricing: Free $0, Pro $49/month or $490/year, Enterprise custom quote."
+    tags: [reasoning, billing, numeric]
+
+  - id: reasoning-015
+    input: "A Pro customer hits 120 req/min briefly. What happens?"
+    expected_output: "Requests above 100/min are rate-limited; they should stay under the Pro cap or upgrade to Enterprise (1000/min)."
+    retrieval_context:
+      - "Pro plan: API access, up to 50 projects, email support, 100 requests/minute."
+      - "Enterprise plan: unlimited projects, SSO, audit logs, dedicated support, 1000 requests/minute."
+    tags: [reasoning, api]
+
+  - id: reasoning-016
+    input: "Does enabling SSO from the March changelog require any plan above Free?"
+    expected_output: "Yes — SSO requires Enterprise even though it shipped in the March changelog."
+    retrieval_context:
+      - "March changelog: added SSO support for all workspace members."
+      - "Enterprise plan includes: SSO, audit logs, and dedicated support."
+    tags: [reasoning, multi-hop, security]
+
+  - id: reasoning-017
+    input: "If unused monthly days are credited on upgrade to annual, does the customer pay full annual price on day one?"
+    expected_output: "They are charged for the annual plan with a credit for unused monthly days applied."
+    retrieval_context:
+      - "Mid-cycle plan changes are prorated. Upgrading from monthly to annual immediately starts the new annual cycle, crediting unused monthly days."
+    tags: [reasoning, billing]
+
+  - id: reasoning-018
+    input: "Which plan should a SIEM-centric security team choose if they also need SAML?"
+    expected_output: "Enterprise — it provides SSO (SAML/OIDC) and audit log streaming to a SIEM."
+    retrieval_context:
+      - "Enterprise authentication: SAML 2.0 and OIDC single sign-on, in addition to standard email/password."
+      - "Audit logs can be exported as CSV or streamed to your SIEM via the Audit API."
+    tags: [reasoning, security]

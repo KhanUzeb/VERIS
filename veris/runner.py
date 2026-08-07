@@ -3,8 +3,8 @@ from __future__ import annotations
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Callable
 
 from .cache import ScoreCache, cache_key
 from .config import SETTINGS

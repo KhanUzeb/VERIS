@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -12,10 +11,10 @@ class GoldenCase(BaseModel):
     actual_output)."""
     id: str
     input: str
-    expected_output: Optional[str] = None
+    expected_output: str | None = None
     retrieval_context: list[str] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class CaseResult(BaseModel):
@@ -26,13 +25,13 @@ class CaseResult(BaseModel):
     latency_ms: float
     passed_min_score: bool
     regressed: bool = False
-    regression_detail: Optional[str] = None
-    error: Optional[str] = None
+    regression_detail: str | None = None
+    error: str | None = None
 
 
 class RunReport(BaseModel):
     run_id: str
-    git_sha: Optional[str] = None
+    git_sha: str | None = None
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     case_results: list[CaseResult] = Field(default_factory=list)
     composite_score: float = 0.0
@@ -41,7 +40,7 @@ class RunReport(BaseModel):
     failed_cases: int = 0
     regressed_cases: int = 0
     duration_s: float = 0.0
-    flakiness_summary: Optional[str] = None  # set when run with --repeat > 1
+    flakiness_summary: str | None = None  # set when run with --repeat > 1
 
     def summarize(self) -> dict:
         return {

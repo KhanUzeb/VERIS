@@ -1,4 +1,4 @@
-.PHONY: install install-dev test lint typecheck run trend diff seed validate usage prune list-cases clean
+.PHONY: install install-dev test lint typecheck run dry-run trend diff baseline seed validate usage prune list-cases clean
 
 install:
 	pip install -r requirements.txt

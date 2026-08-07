@@ -91,9 +91,14 @@ def evaluate_case(
                 if spec.stdev_band_override is not None
                 else SETTINGS.regression_stdev_band
             )
-            # When stdev == 0 (flat baseline), band/override are ignored and
-            # floor is 0.9 * median — see MetricSpec.
-            floor = median - (band * stdev if stdev > 0 else median * 0.1)
+            # Flat baselines (stdev == 0) use a synthetic relative stdev so
+            # band / stdev_band_override still scale the floor. At the default
+            # band this preserves the historical 0.9 * median floor.
+            effective_stdev = (
+                stdev if stdev > 0
+                else median * 0.1 / SETTINGS.regression_stdev_band
+            )
+            floor = median - band * effective_stdev
             if score < floor:
                 regressed = True
                 if spec.blocking:

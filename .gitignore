@@ -18,3 +18,8 @@ htmlcov/
 .ruff_cache/
 dist/
 build/
+veris_trends_cache.db-shm
+.gitignore
+veris_trends.db-wal
+veris_trends.db-shm
+veris_trends_cache.db-wal

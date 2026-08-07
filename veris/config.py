@@ -30,9 +30,8 @@ class MetricSpec:
     # Set this when a metric is known to be judge-noisy (confirmed via
     # `run --repeat 5`) — widen the band so noise doesn't get mistaken for
     # a regression, WITHOUT touching min_score, which stays the real floor.
-    # Caveat: when baseline stdev == 0 (identical historical scores), the
-    # band and any override are ignored; the regression floor is hardcoded
-    # to 0.9 * median in regression_gate.evaluate_case.
+    # Flat baselines (stdev == 0) still respect band/override via a synthetic
+    # relative stdev; at the default band the floor is 0.9 * median.
     requires_retrieval_context: bool = False
     # When True, the metric is undefined without retrieval_context and must
     # not be treated as a blocking "missing" failure for context-free cases.
