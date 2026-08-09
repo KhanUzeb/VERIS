@@ -17,7 +17,7 @@ def load_golden_cases(directory: Path, tags: list[str] | None = None) -> list[Go
 
     for path in sorted(directory.glob("*.yaml")) + sorted(directory.glob("*.yml")):
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 raw = yaml.safe_load(f) or []
         except yaml.YAMLError as e:
             raise ValueError(f"malformed YAML in {path}: {e}") from e

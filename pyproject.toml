@@ -2,7 +2,7 @@
 name = "veris"
 version = "2.1.0"
 description = "Veris — local regression gate for LLM/agent systems (DeepEval + RAGAS + Langfuse)."
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 readme = "README.md"
 keywords = ["llm", "eval", "regression", "deepeval", "ragas", "agents"]
 dependencies = [

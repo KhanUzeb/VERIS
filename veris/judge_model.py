@@ -31,7 +31,7 @@ _JUDGE_CONCURRENCY = threading.Semaphore(6)
 
 # Process-wide running totals — read via `usage_totals()` for cost reporting.
 _usage_lock = threading.Lock()
-_usage_totals = {"prompt_tokens": 0, "completion_tokens": 0, "calls": 0}
+_usage_totals: dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0, "calls": 0}
 
 # Rough $/1M tokens for cost estimates. Not billing-accurate, just enough
 # to flag "this run cost noticeably more than usual" in reports.
@@ -41,7 +41,7 @@ _COST_PER_M_OUTPUT = 0.08
 
 def usage_totals() -> dict:
     with _usage_lock:
-        totals = dict(_usage_totals)
+        totals: dict[str, int | float] = dict(_usage_totals)
     est_cost = (
         totals["prompt_tokens"] / 1_000_000 * _COST_PER_M_INPUT
         + totals["completion_tokens"] / 1_000_000 * _COST_PER_M_OUTPUT

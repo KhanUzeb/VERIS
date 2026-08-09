@@ -45,9 +45,16 @@ class _CircuitBreaker:
     def __init__(self, threshold: int):
         self.threshold = threshold
         self._consecutive_failures = 0
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self.tripped = False
         self._cancel = threading.Event()
+        self._reason = "circuit breaker tripped"
+
+    def trip(self, reason: str) -> None:
+        with self._lock:
+            self.tripped = True
+            self._reason = reason
+            self._cancel.set()
 
     def record(self, success: bool) -> None:
         with self._lock:
@@ -56,20 +63,19 @@ class _CircuitBreaker:
             else:
                 self._consecutive_failures += 1
                 if self._consecutive_failures >= self.threshold:
-                    self.tripped = True
-                    self._cancel.set()
+                    self.trip(
+                        f"circuit breaker tripped: {self.threshold} consecutive judge-model failures. "
+                        "This almost always means a bad API key, a dead endpoint, or a provider outage "
+                        "— not per-case flakiness. Aborting the run rather than scoring the remaining "
+                        "cases as failures."
+                    )
 
     def cancelled(self) -> bool:
         return self._cancel.is_set()
 
     def check(self) -> None:
         if self.tripped:
-            raise RuntimeError(
-                f"circuit breaker tripped: {self.threshold} consecutive judge-model "
-                "failures. This almost always means a bad API key, a dead endpoint, "
-                "or a provider outage — not per-case flakiness. Aborting the run "
-                "rather than scoring the remaining cases as failures."
-            )
+            raise RuntimeError(self._reason)
 
 
 def _score_case(
@@ -175,6 +181,7 @@ def run_gate(
     dataset_dir=None,
     use_cache: bool = True,
     repeat: int = 1,
+    fail_fast: bool = False,
 ) -> RunReport:
     dataset_dir = dataset_dir or SETTINGS.golden_dataset_dir
     cases = load_golden_cases(dataset_dir, tags=tags)
@@ -207,12 +214,30 @@ def run_gate(
             }
             for fut in as_completed(futures):
                 try:
-                    report.case_results.append(fut.result())
+                    result = fut.result()
+                    report.case_results.append(result)
+                    if fail_fast and not result.passed_min_score:
+                        breaker.trip("fail-fast: blocking case failure")
+                        pool.shutdown(wait=False, cancel_futures=True)
+                        abort_error = RuntimeError("fail-fast: blocking case failure")
+                        break
+                    if (
+                        SETTINGS.max_run_cost_usd is not None
+                        and usage_totals()["estimated_cost_usd"] > SETTINGS.max_run_cost_usd
+                    ):
+                        cost = usage_totals()["estimated_cost_usd"]
+                        breaker.trip(
+                            f"run cost ceiling exceeded: ${cost:.4f} > "
+                            f"${SETTINGS.max_run_cost_usd:.4f}"
+                        )
+                        pool.shutdown(wait=False, cancel_futures=True)
+                        abort_error = RuntimeError(breaker._reason)
+                        break
                 except RuntimeError as e:
                     # Circuit breaker tripped inside a worker. cancel_futures
                     # drains the queue; the cancel flag stops further judge
                     # work in still-running workers.
-                    breaker._cancel.set()
+                    breaker.trip(str(e))
                     pool.shutdown(wait=False, cancel_futures=True)
                     abort_error = RuntimeError(str(e))
                     break

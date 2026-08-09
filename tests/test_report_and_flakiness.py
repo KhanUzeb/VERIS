@@ -3,8 +3,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from rich.console import Console
+
+import veris.report as report_module
 from veris.flakiness import analyze_repeats, summarize_flaky_cases
-from veris.report import write_csv_report, write_html_report, write_json_report
+from veris.report import (
+    _sparkline,
+    print_report,
+    write_csv_report,
+    write_html_report,
+    write_json_report,
+)
 from veris.schemas import CaseResult, RunReport
 
 
@@ -74,3 +83,27 @@ def test_csv_and_json_reports(tmp_path):
     assert "toxicity" in csv_text
     assert "answer_relevancy" in csv_text
     assert csv_text.count("\n") >= 3  # header + 2 metric rows
+
+
+def test_print_report_renders_all_statuses(monkeypatch):
+    recorded = Console(record=True, width=120)
+    monkeypatch.setattr(report_module, "console", recorded)
+    report = RunReport(
+        run_id="r-status", total_cases=4, failed_cases=2, regressed_cases=1,
+        case_results=[
+            CaseResult(case_id="pass", input="", actual_output="", scores={"m": .9}, latency_ms=1, passed_min_score=True),
+            CaseResult(case_id="fail", input="", actual_output="", scores={"m": .2}, latency_ms=1, passed_min_score=False),
+            CaseResult(case_id="regressed", input="", actual_output="", scores={"m": .8}, latency_ms=1, passed_min_score=True, regressed=True),
+            CaseResult(case_id="error", input="", actual_output="", scores={}, latency_ms=1, passed_min_score=False, error="boom"),
+        ],
+    )
+    print_report(report)
+    output = recorded.export_text()
+    for status in ("PASS", "FAIL", "REGRESSED", "ERROR"):
+        assert status in output
+
+
+def test_sparkline_edge_cases():
+    assert _sparkline([]) == ""
+    assert len(_sparkline([0.5])) == 1
+    assert _sparkline([1.0, 1.0, 1.0]) == "▁▁▁"

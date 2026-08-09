@@ -9,6 +9,7 @@ python -m venv .venv
 
 pip install -e ".[dev]"
 cp .env.example .env   # add GROQ_API_KEY for live runs
+pre-commit install       # one-time setup for automatic lint/type checks
 ```
 
 ## Checks

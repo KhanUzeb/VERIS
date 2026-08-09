@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
@@ -32,7 +32,7 @@ class CaseResult(BaseModel):
 class RunReport(BaseModel):
     run_id: str
     git_sha: str | None = None
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     case_results: list[CaseResult] = Field(default_factory=list)
     composite_score: float = 0.0
     passed: bool = False

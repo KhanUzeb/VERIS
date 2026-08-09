@@ -159,7 +159,7 @@ class TrendStore:
             ).fetchall()
         cols = ["run_id", "git_sha", "timestamp", "composite_score", "passed",
                 "total_cases", "failed_cases", "regressed_cases", "duration_s"]
-        return [dict(zip(cols, r)) for r in rows]
+        return [dict(zip(cols, r, strict=True)) for r in rows]
 
     def get_run(self, run_id: str) -> dict | None:
         with self._lock:
@@ -173,7 +173,7 @@ class TrendStore:
             return None
         cols = ["run_id", "git_sha", "timestamp", "composite_score", "passed",
                 "total_cases", "failed_cases", "regressed_cases", "duration_s"]
-        return dict(zip(cols, row))
+        return dict(zip(cols, row, strict=True))
 
     def get_case_scores(self, run_id: str) -> dict[str, dict[str, float]]:
         """case_id -> {metric_name: score} for one run. Used by `diff`."""
@@ -233,7 +233,7 @@ class TrendStore:
             ).fetchall()
         cols = ["run_id", "timestamp", "git_sha", "calls", "prompt_tokens",
                 "completion_tokens", "estimated_cost_usd"]
-        return [dict(zip(cols, r)) for r in rows]
+        return [dict(zip(cols, r, strict=True)) for r in rows]
 
     def prune_older_than(self, days: int) -> int:
         """Deletes runs (and their case_scores/judge_usage) older than N

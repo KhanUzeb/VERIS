@@ -74,6 +74,10 @@ class Settings:
     # judge-call failures in a row (almost always means a broken API key or
     # dead endpoint, not per-case flakiness) rather than silently burning
     # through the rest of the budget with every remaining case scored as 0.
+    max_run_cost_usd: float | None = (
+        float(os.environ["VERIS_MAX_RUN_COST_USD"])
+        if os.getenv("VERIS_MAX_RUN_COST_USD") else None
+    )
 
     # --- Metrics (blocking = fails the run, advisory = reported but doesn't block) ---
     metrics: tuple = field(default_factory=lambda: (

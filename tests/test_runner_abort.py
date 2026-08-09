@@ -64,3 +64,70 @@ def test_circuit_breaker_abort_persists_run_and_closes(tmp_path, monkeypatch):
     usage = store.usage_history()
     assert len(usage) == 1
     store.close()
+
+
+def test_repeat_scores_bypass_cache_and_record_flaky_mean(tmp_path, monkeypatch):
+    case = GoldenCase(id="repeat", input="q")
+    store = TrendStore(db_path=tmp_path / "repeat.db")
+    breaker = runner._CircuitBreaker(threshold=5)
+    calls = iter((0.1, 0.9, 0.1))
+    monkeypatch.setattr(runner, "score_deepeval", lambda *_a, **_k: {"toxicity": next(calls)})
+    monkeypatch.setattr(runner, "score_ragas", lambda *_a, **_k: {})
+    cache = MagicMock()
+    flaky = []
+
+    result = runner._run_one_case(
+        case, lambda text: "answer", store, "run", cache, "judge", 3, breaker, flaky,
+    )
+
+    assert result.scores["toxicity"] == pytest.approx((.1 + .9 + .1) / 3)
+    assert not result.passed_min_score
+    assert flaky and flaky[0].is_flaky
+    assert "flaky metrics" in (result.regression_detail or "")
+    cache.get.assert_not_called()
+    store.close()
+
+
+def test_cost_ceiling_aborts_and_persists_run(tmp_path, monkeypatch):
+    cases = [GoldenCase(id=f"c{i}", input=f"q{i}") for i in range(4)]
+    db_path = tmp_path / "cost.db"
+    monkeypatch.setattr(runner, "load_golden_cases", lambda *a, **k: cases)
+    monkeypatch.setattr(
+        runner, "SETTINGS", replace(runner.SETTINGS, max_run_cost_usd=0.01, max_workers=1)
+    )
+    monkeypatch.setattr(runner, "TrendStore", lambda *a, **k: TrendStore(db_path=db_path))
+    mock_judge = MagicMock()
+    mock_judge.get_model_name.return_value = "test"
+    monkeypatch.setattr(runner, "GroqEvalModel", lambda: mock_judge)
+    monkeypatch.setattr(runner, "score_deepeval", lambda *_a, **_k: {"toxicity": .99})
+    monkeypatch.setattr(runner, "score_ragas", lambda *_a, **_k: {})
+    monkeypatch.setattr(runner, "usage_totals", lambda: {
+        "calls": 1, "prompt_tokens": 1, "completion_tokens": 1,
+        "estimated_cost_usd": .02,
+    })
+
+    with pytest.raises(RuntimeError, match="cost ceiling exceeded"):
+        runner.run_gate(lambda text: text)
+
+    store = TrendStore(db_path=db_path)
+    assert store.recent_runs(limit=5)[0]["passed"] == 0
+    store.close()
+
+
+def test_fail_fast_runs_fewer_cases(tmp_path, monkeypatch):
+    cases = [GoldenCase(id=f"c{i}", input=f"q{i}") for i in range(5)]
+    monkeypatch.setattr(runner, "load_golden_cases", lambda *a, **k: cases)
+    monkeypatch.setattr(
+        runner, "SETTINGS", replace(runner.SETTINGS, max_workers=1, max_consecutive_judge_failures=99)
+    )
+    monkeypatch.setattr(runner, "TrendStore", lambda *a, **k: TrendStore(db_path=tmp_path / "ff.db"))
+    monkeypatch.setattr(runner, "GroqEvalModel", lambda: MagicMock(get_model_name=lambda: "test"))
+    monkeypatch.setattr(runner, "score_deepeval", lambda *_a, **_k: {"toxicity": 0.0})
+    monkeypatch.setattr(runner, "score_ragas", lambda *_a, **_k: {})
+
+    with pytest.raises(RuntimeError, match="fail-fast"):
+        runner.run_gate(lambda text: text, fail_fast=True)
+
+    store = TrendStore(db_path=tmp_path / "ff.db")
+    assert store.recent_runs(limit=1)[0]["total_cases"] == 5
+    store.close()

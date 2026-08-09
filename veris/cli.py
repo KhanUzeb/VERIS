@@ -52,8 +52,9 @@ def cli():
 @click.option("--no-cache", is_flag=True, help="bypass the score cache, force fresh judge calls")
 @click.option("--repeat", default=1, help="score each case N times to detect judge-model flakiness "
                                            "(disables cache, multiplies cost — use selectively)")
+@click.option("--fail-fast", is_flag=True, help="stop after the first blocking case failure")
 @click.option("--dry-run", is_flag=True, help="load cases + resolve target, print plan, make zero LLM calls")
-def run(target, tags, json_out, html_out, csv_out, no_langfuse, no_cache, repeat, dry_run):
+def run(target, tags, json_out, html_out, csv_out, no_langfuse, no_cache, repeat, fail_fast, dry_run):
     """Run the golden set against TARGET and gate on regressions."""
     target_fn = _resolve_target(target)
     tag_list = [t.strip() for t in tags.split(",")] if tags else None
@@ -76,7 +77,7 @@ def run(target, tags, json_out, html_out, csv_out, no_langfuse, no_cache, repeat
 
     report = run_gate(
         target_fn, tags=tag_list, git_sha=_git_sha(),
-        use_cache=not no_cache, repeat=repeat,
+        use_cache=not no_cache, repeat=repeat, fail_fast=fail_fast,
     )
 
     print_report(report)
