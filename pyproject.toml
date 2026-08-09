@@ -1,10 +1,10 @@
 [project]
 name = "veris"
 version = "2.1.0"
-description = "Veris — local DeepEval regression gate for LLM/agent systems."
+description = "Agent-agnostic local LLM evaluation and regression testing gate with DeepEval, golden datasets, SQLite baselines, and CI-ready exit codes."
 requires-python = ">=3.11"
 readme = "README.md"
-keywords = ["llm", "eval", "regression", "deepeval", "agents"]
+keywords = ["llm-evaluation", "agent-evaluation", "regression-testing", "golden-dataset", "deepeval", "sqlite", "llm", "agents"]
 dependencies = [
     "deepeval>=2.0.0",
     "pydantic>=2.7.0",

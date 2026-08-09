@@ -1,9 +1,9 @@
 # Veris
 
-**Veris** is an agent-agnostic, local LLM regression testing and agent
-evaluation gate. It runs your golden dataset against your callable, scores the
-outputs with DeepEval, compares them with a rolling SQLite baseline, and
-returns a reliable pass/fail exit code.
+**Veris** is an agent-agnostic, local LLM evaluation and regression testing
+gate. It runs golden datasets against your callable, scores outputs with
+DeepEval, compares them with rolling SQLite baselines, and returns reliable
+CI-ready pass/fail exit codes.
 
 It is deliberately small and explicit: no bundled agent, no hosted dashboard,
 no automatic commit hooks, and no required observability service.
