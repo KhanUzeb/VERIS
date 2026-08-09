@@ -47,3 +47,21 @@ def test_cache_stats_tracks_hits(tmp_path):
     assert stats["cached_entries"] == 1
     assert stats["total_hits"] == 2
     cache.close()
+
+
+def test_partial_scores_are_not_reused_as_complete_cache_hits(monkeypatch, tmp_path):
+    import veris.runner as runner
+
+    case = make_case()
+    cache = ScoreCache(db_path=tmp_path / "cache.db")
+    key = cache_key(case, "4", "groq/test-model")
+    cache.set(key, {"answer_relevancy": 0.9})
+
+    breaker = runner._CircuitBreaker(5)
+    monkeypatch.setattr(runner, "score_deepeval", lambda *_a: {"answer_relevancy": 0.9, "toxicity": 0.95, "faithfulness": 0.9, "hallucination": 0.95})
+
+    scores = runner._score_case(case, "4", cache, "groq/test-model", breaker)
+    assert "toxicity" in scores
+    assert cache.get(key) == scores
+    assert cache.stats()["total_hits"] == 2
+    cache.close()

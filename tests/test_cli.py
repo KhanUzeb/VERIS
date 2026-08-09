@@ -31,11 +31,31 @@ def test_dry_run():
     runner = CliRunner()
     result = runner.invoke(
         cli,
-        ["run", "--target", "veris.targets:my_agent_fn", "--dry-run"],
+        ["run", "--target", "example:fn", "--dry-run"],
     )
     assert result.exit_code == 0, result.output
     assert "dry-run" in result.output
     assert "applicable metrics" in result.output.lower() or "planned cases" in result.output.lower()
+
+
+def test_version_is_available():
+    result = CliRunner().invoke(cli, ["--version"])
+    assert result.exit_code == 0
+    assert "2.1.0" in result.output
+
+
+def test_invalid_target_has_actionable_error():
+    result = CliRunner().invoke(cli, ["run", "--target", "missing_module:answer"])
+    assert result.exit_code == 1
+    assert "could not load target" in result.output
+    assert "module:function" in result.output
+
+
+def test_repeat_must_be_positive():
+    runner = CliRunner()
+    result = runner.invoke(cli, ["run", "--target", "example:fn", "--repeat", "0"])
+    assert result.exit_code == 2
+    assert "Invalid value for '--repeat'" in result.output
 
 
 def test_metric_applicability_on_sample_cases():
@@ -174,7 +194,7 @@ def test_run_fail_fast_forwards_flag_and_reports_partial_run(monkeypatch, tmp_pa
     })())
 
     result = CliRunner().invoke(cli, [
-        "run", "--target", "example:fn", "--fail-fast", "--no-langfuse",
+        "run", "--target", "example:fn", "--fail-fast",
         "--json-out", str(tmp_path / "r.json"), "--html-out", str(tmp_path / "r.html"),
     ])
     assert result.exit_code == 1

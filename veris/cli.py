@@ -8,10 +8,10 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from . import __version__
 from .cache import ScoreCache
 from .config import SETTINGS
 from .judge_model import usage_totals
-from .langfuse_tracker import LangfuseTracker
 from .report import print_report, write_csv_report, write_html_report, write_json_report
 from .runner import run_gate
 from .trend_store import TrendStore
@@ -26,8 +26,17 @@ def _resolve_target(dotted_path: str):
         raise click.BadParameter(
             "target must be 'module.path:function_name'", param_hint="--target"
         )
-    module = importlib.import_module(module_path)
-    return getattr(module, func_name)
+    try:
+        module = importlib.import_module(module_path)
+        target = getattr(module, func_name)
+    except (ImportError, AttributeError) as e:
+        raise click.ClickException(
+            f"could not load target {dotted_path!r}: {e}. "
+            "Use a callable in the form module:function."
+        ) from e
+    if not callable(target):
+        raise click.ClickException(f"target {dotted_path!r} is not callable")
+    return target
 
 
 def _git_sha() -> str | None:
@@ -37,26 +46,31 @@ def _git_sha() -> str | None:
         return None
 
 
-@click.group()
+@click.group(epilog="Start with: veris validate, then veris run --target module:function --dry-run")
+@click.version_option(__version__, prog_name="veris")
 def cli():
-    """Veris - local regression gate for LLM/agent systems (DeepEval + RAGAS + Langfuse)."""
+    """Veris — a local, agent-agnostic DeepEval regression gate.
+
+    Supply your own target callable, compare scores to a rolling SQLite
+    baseline, and get a stable pass/fail exit code for local or manual CI use.
+    """
 
 
 @cli.command()
-@click.option("--target", required=True, help="dotted path: module.path:function_name")
-@click.option("--tags", default=None, help="comma-separated tags to filter golden cases")
+@click.option("--target", required=True, metavar="MODULE:FUNCTION",
+              help="your callable, e.g. my_agent:answer")
+@click.option("--tags", default=None, metavar="TAG,...", help="comma-separated case tags")
 @click.option("--json-out", default="veris_report.json", help="path for JSON report")
 @click.option("--html-out", default="veris_report.html", help="path for HTML report")
 @click.option("--csv-out", default=None, help="optional path for CSV report (one row per case/metric)")
-@click.option("--no-langfuse", is_flag=True, help="skip pushing traces to Langfuse")
 @click.option("--no-cache", is_flag=True, help="bypass the score cache, force fresh judge calls")
-@click.option("--repeat", default=1, help="score each case N times to detect judge-model flakiness "
-                                           "(disables cache, multiplies cost — use selectively)")
+@click.option("--repeat", default=1, type=click.IntRange(min=1),
+              help="score each case N times to detect judge-model flakiness "
+                   "(disables cache, multiplies cost — use selectively)")
 @click.option("--fail-fast", is_flag=True, help="stop after the first blocking case failure")
-@click.option("--dry-run", is_flag=True, help="load cases + resolve target, print plan, make zero LLM calls")
-def run(target, tags, json_out, html_out, csv_out, no_langfuse, no_cache, repeat, fail_fast, dry_run):
+@click.option("--dry-run", is_flag=True, help="show the plan without importing the target or making LLM calls")
+def run(target, tags, json_out, html_out, csv_out, no_cache, repeat, fail_fast, dry_run):
     """Run the golden set against TARGET and gate on regressions."""
-    target_fn = _resolve_target(target)
     tag_list = [t.strip() for t in tags.split(",")] if tags else None
 
     if dry_run:
@@ -75,10 +89,14 @@ def run(target, tags, json_out, html_out, csv_out, no_langfuse, no_cache, repeat
         console.print(table)
         return
 
-    report = run_gate(
-        target_fn, tags=tag_list, git_sha=_git_sha(),
-        use_cache=not no_cache, repeat=repeat, fail_fast=fail_fast,
-    )
+    target_fn = _resolve_target(target)
+    try:
+        report = run_gate(
+            target_fn, tags=tag_list, git_sha=_git_sha(),
+            use_cache=not no_cache, repeat=repeat, fail_fast=fail_fast,
+        )
+    except (FileNotFoundError, ValueError, RuntimeError) as e:
+        raise click.ClickException(str(e)) from e
 
     print_report(report)
     write_json_report(report, json_out)
@@ -98,9 +116,6 @@ def run(target, tags, json_out, html_out, csv_out, no_langfuse, no_cache, repeat
             f"judge usage: {totals['calls']} calls, {totals['prompt_tokens']}+"
             f"{totals['completion_tokens']} tokens, ~${totals['estimated_cost_usd']}"
         )
-
-    if not no_langfuse:
-        LangfuseTracker().log_run(report)
 
     sys.exit(0 if report.passed else 1)
 
@@ -190,7 +205,7 @@ def baseline(case_id, metric, window):
 
 
 @cli.command()
-@click.option("--limit", default=15)
+@click.option("--limit", default=15, type=click.IntRange(min=1), show_default=True)
 def trend(limit):
     """Show recent run history from the trend store."""
     store = TrendStore()
@@ -318,7 +333,7 @@ def validate(dataset_dir):
 
 
 @cli.command()
-@click.option("--limit", default=15)
+@click.option("--limit", default=15, type=click.IntRange(min=1), show_default=True)
 def usage(limit):
     """Show judge-model token usage and estimated cost per run."""
     store = TrendStore()
@@ -338,7 +353,8 @@ def usage(limit):
 
 
 @cli.command()
-@click.option("--days", default=90, help="delete runs older than this many days")
+@click.option("--days", default=90, type=click.IntRange(min=0), show_default=True,
+              help="delete runs older than this many days")
 @click.option("--yes", is_flag=True, help="skip confirmation prompt")
 def prune(days, yes):
     """Delete old runs from the trend store. The DB grows unbounded

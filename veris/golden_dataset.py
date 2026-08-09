@@ -23,7 +23,15 @@ def load_golden_cases(directory: Path, tags: list[str] | None = None) -> list[Go
             raise ValueError(f"malformed YAML in {path}: {e}") from e
 
         if isinstance(raw, dict):
-            raw = raw.get("cases", [])
+            if "cases" not in raw:
+                raise ValueError(
+                    f"invalid golden dataset in {path}: top-level mapping must contain 'cases'"
+                )
+            raw = raw["cases"]
+        if not isinstance(raw, list):
+            raise ValueError(
+                f"invalid golden dataset in {path}: top-level value must be a list or a mapping with 'cases'"
+            )
         for i, entry in enumerate(raw):
             try:
                 case = GoldenCase(**entry)

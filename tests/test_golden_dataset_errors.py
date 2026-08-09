@@ -32,3 +32,10 @@ def test_invalid_case_names_file_and_entry(tmp_path):
 
     with pytest.raises(ValueError, match=re.escape(f"invalid golden case in {path} (entry #0)")):
         load_golden_cases(tmp_path)
+
+
+@pytest.mark.parametrize("content", ["not-a-case-list", "foo: bar"])
+def test_invalid_dataset_top_level_is_rejected(tmp_path, content):
+    (tmp_path / "invalid.yaml").write_text(content, encoding="utf-8")
+    with pytest.raises(ValueError, match="top-level"):
+        load_golden_cases(tmp_path)

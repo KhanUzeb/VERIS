@@ -51,7 +51,6 @@ def test_circuit_breaker_abort_persists_run_and_closes(tmp_path, monkeypatch):
         raise RuntimeError("judge down")
 
     monkeypatch.setattr(runner, "score_deepeval", boom)
-    monkeypatch.setattr(runner, "score_ragas", boom)
 
     with pytest.raises(RuntimeError, match="circuit breaker tripped"):
         runner.run_gate(lambda text: f"out:{text}", use_cache=True)
@@ -72,7 +71,6 @@ def test_repeat_scores_bypass_cache_and_record_flaky_mean(tmp_path, monkeypatch)
     breaker = runner._CircuitBreaker(threshold=5)
     calls = iter((0.1, 0.9, 0.1))
     monkeypatch.setattr(runner, "score_deepeval", lambda *_a, **_k: {"toxicity": next(calls)})
-    monkeypatch.setattr(runner, "score_ragas", lambda *_a, **_k: {})
     cache = MagicMock()
     flaky = []
 
@@ -100,7 +98,6 @@ def test_cost_ceiling_aborts_and_persists_run(tmp_path, monkeypatch):
     mock_judge.get_model_name.return_value = "test"
     monkeypatch.setattr(runner, "GroqEvalModel", lambda: mock_judge)
     monkeypatch.setattr(runner, "score_deepeval", lambda *_a, **_k: {"toxicity": .99})
-    monkeypatch.setattr(runner, "score_ragas", lambda *_a, **_k: {})
     monkeypatch.setattr(runner, "usage_totals", lambda: {
         "calls": 1, "prompt_tokens": 1, "completion_tokens": 1,
         "estimated_cost_usd": .02,
@@ -123,7 +120,6 @@ def test_fail_fast_runs_fewer_cases(tmp_path, monkeypatch):
     monkeypatch.setattr(runner, "TrendStore", lambda *a, **k: TrendStore(db_path=tmp_path / "ff.db"))
     monkeypatch.setattr(runner, "GroqEvalModel", lambda: MagicMock(get_model_name=lambda: "test"))
     monkeypatch.setattr(runner, "score_deepeval", lambda *_a, **_k: {"toxicity": 0.0})
-    monkeypatch.setattr(runner, "score_ragas", lambda *_a, **_k: {})
 
     with pytest.raises(RuntimeError, match="fail-fast"):
         runner.run_gate(lambda text: text, fail_fast=True)

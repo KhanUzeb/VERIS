@@ -125,14 +125,25 @@ class GroqEvalModel(_deepeval_base()):
 
     def _call_openrouter(self, prompt: str) -> str:
         resp = self._openrouter().chat.completions.create(
-            model="meta-llama/llama-3.3-70b-instruct",
+            # A primary OpenRouter run must honor EVAL_JUDGE_MODEL. Keep the
+            # known-good OpenRouter model for Groq-primary fallback, because
+            # Groq model ids are not necessarily valid OpenRouter ids.
+            model=(
+                self.model_name
+                if self.provider == "openrouter"
+                else "meta-llama/llama-3.3-70b-instruct"
+            ),
             messages=[{"role": "user", "content": prompt}],
             temperature=0,
         )
         _record_usage(getattr(resp, "usage", None))
         return resp.choices[0].message.content
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=8))
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=8),
+        reraise=True,
+    )
     def generate(self, prompt: str) -> str:
         with _JUDGE_CONCURRENCY:
             primary = self._call_groq if self.provider == "groq" else self._call_openrouter

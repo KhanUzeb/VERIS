@@ -55,12 +55,6 @@ class Settings:
     # as fallback when its API key is also configured.
     judge_provider: str = os.getenv("EVAL_JUDGE_PROVIDER", "groq")
 
-    # --- Langfuse ---
-    langfuse_public_key: str = os.getenv("LANGFUSE_PUBLIC_KEY", "")
-    langfuse_secret_key: str = os.getenv("LANGFUSE_SECRET_KEY", "")
-    langfuse_host: str = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
-    langfuse_enabled: bool = bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
-
     # --- Storage ---
     trend_db_path: Path = Path(os.getenv("TREND_DB_PATH", "./veris_trends.db"))
     golden_dataset_dir: Path = Path(os.getenv("GOLDEN_DATASET_DIR", "./golden_dataset"))
@@ -90,18 +84,6 @@ class Settings:
             "hallucination", blocking=True, min_score=0.80, weight=1.5,
             requires_retrieval_context=True,
         ),  # inverted: higher = less hallucination
-        MetricSpec(
-            "context_precision", blocking=False, min_score=0.60, weight=1.0,
-            requires_retrieval_context=True,
-        ),
-        MetricSpec(
-            "context_recall", blocking=False, min_score=0.60, weight=1.0,
-            requires_retrieval_context=True,
-        ),
-        MetricSpec(
-            "answer_correctness", blocking=True, min_score=0.65, weight=1.2,
-            requires_retrieval_context=True, requires_expected_output=True,
-        ),
         MetricSpec("toxicity", blocking=True, min_score=0.90, weight=1.0),  # inverted
     ))
 

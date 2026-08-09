@@ -1,16 +1,12 @@
 [project]
 name = "veris"
 version = "2.1.0"
-description = "Veris — local regression gate for LLM/agent systems (DeepEval + RAGAS + Langfuse)."
+description = "Veris — local DeepEval regression gate for LLM/agent systems."
 requires-python = ">=3.11"
 readme = "README.md"
-keywords = ["llm", "eval", "regression", "deepeval", "ragas", "agents"]
+keywords = ["llm", "eval", "regression", "deepeval", "agents"]
 dependencies = [
     "deepeval>=2.0.0",
-    "ragas>=0.2.0",
-    "datasets>=2.19.0",
-    "langfuse>=2.36.0",
-    "langchain-core>=0.3.0",
     "pydantic>=2.7.0",
     "pyyaml>=6.0",
     "rich>=13.7.0",
@@ -19,8 +15,6 @@ dependencies = [
     "openai>=1.30.0",
     "python-dotenv>=1.0.0",
     "tenacity>=8.2.0",
-    "langchain-community>=0.3.0,<0.4",
-    "sentence-transformers>=3.0.0",
 ]
 
 [project.optional-dependencies]

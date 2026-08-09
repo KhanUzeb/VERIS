@@ -16,10 +16,12 @@ typecheck:
 	mypy veris/ --ignore-missing-imports
 
 run:
-	python -m veris.cli run --target veris.targets:my_agent_fn
+	@test -n "$(TARGET)" || (echo "set TARGET=module:function" && exit 2)
+	python -m veris.cli run --target "$(TARGET)"
 
 dry-run:
-	python -m veris.cli run --target veris.targets:my_agent_fn --dry-run
+	@test -n "$(TARGET)" || (echo "set TARGET=module:function" && exit 2)
+	python -m veris.cli run --target "$(TARGET)" --dry-run
 
 list-cases:
 	python -m veris.cli list-cases
@@ -40,7 +42,8 @@ baseline:
 	python -m veris.cli baseline
 
 seed:
-	python scripts/seed_baseline.py --target veris.targets:my_agent_fn --n 3
+	@test -n "$(TARGET)" || (echo "set TARGET=module:function" && exit 2)
+	python scripts/seed_baseline.py --target "$(TARGET)" --n 3
 
 prune:
 	python -m veris.cli prune --days 90

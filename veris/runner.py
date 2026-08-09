@@ -25,13 +25,6 @@ def score_deepeval(case, actual_output: str) -> dict[str, float]:
     return _impl(case, actual_output)
 
 
-def score_ragas(case, actual_output: str) -> dict[str, float]:
-    """Lazy wrapper — keeps ragas off the import path for CLI/unit tests.
-    Monkeypatchable as `runner.score_ragas`."""
-    from .metrics.ragas_metrics import score_ragas as _impl
-    return _impl(case, actual_output)
-
-
 class _CircuitBreaker:
     """Trips after N consecutive judge-model failures. This distinguishes
     "the target's output is genuinely bad" (which should fail specific
@@ -81,8 +74,8 @@ class _CircuitBreaker:
 def _score_case(
     case, actual_output: str, cache: ScoreCache | None, judge_name: str, breaker: _CircuitBreaker,
 ) -> dict[str, float]:
-    """Runs both metric suites, checking the cache first. Returns the
-    combined score dict. Cache is keyed on everything that could change
+    """Runs the DeepEval suite, checking the cache first. Returns the
+    score dict. Cache is keyed on everything that could change
     the score, including the metrics fingerprint from config.py."""
     breaker.check()
     if breaker.cancelled():
@@ -91,7 +84,11 @@ def _score_case(
     key = cache_key(case, actual_output, judge_name) if cache else None
     if cache and key:
         cached = cache.get(key)
-        if cached is not None:
+        applicable = {spec.name for spec in SETTINGS.metrics if spec.is_applicable(case)}
+        # Never reuse a partial suite result. A transient failure in one
+        # judge suite must be retried next run, not fossilized as a permanent
+        # "missing metric" gate failure in the score cache.
+        if cached is not None and applicable.issubset(cached):
             return cached
 
     scores: dict[str, float] = {}
@@ -106,15 +103,10 @@ def _score_case(
         breaker.record(success=any_success)
         raise RuntimeError("circuit breaker tripped")
 
-    try:
-        scores.update(score_ragas(case, actual_output))
-        any_success = True
-    except Exception as e:
-        print(f"[warn] ragas scoring failed for {case.id}: {e}")
-
     breaker.record(success=any_success)
 
-    if cache and key and scores:
+    applicable = {spec.name for spec in SETTINGS.metrics if spec.is_applicable(case)}
+    if cache and key and scores and applicable.issubset(scores):
         cache.set(key, scores)
     return scores
 

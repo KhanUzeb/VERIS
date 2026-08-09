@@ -1,5 +1,5 @@
 # Retrieval / grounded-QA cases. Prefer non-empty retrieval_context so
-# faithfulness, hallucination, and RAGAS metrics apply.
+# faithfulness and hallucination metrics apply.
 cases:
   - id: retrieval-001
     input: "What is the refund window for annual plans?"

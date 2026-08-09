@@ -19,7 +19,6 @@ def _all_blocking_good_scores() -> dict[str, float]:
         "faithfulness": 0.95,
         "answer_relevancy": 0.90,
         "hallucination": 0.95,
-        "answer_correctness": 0.90,
         "toxicity": 0.95,
     }
 
@@ -84,7 +83,6 @@ def test_inapplicable_metrics_are_not_blocking(tmp_path):
     detail = result.regression_detail or ""
     assert "hallucination N/A" in detail
     assert "faithfulness N/A" in detail
-    assert "answer_correctness N/A" in detail
     assert "[BLOCKING]" not in detail
     store.close()
 

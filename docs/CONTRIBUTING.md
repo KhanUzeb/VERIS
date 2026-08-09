@@ -22,10 +22,14 @@ make validate   # golden dataset schema (no LLM)
 make dry-run    # plan cases without judging
 ```
 
+Veris is intentionally agent-agnostic. Do not add a sample agent or provider
+adapter to the harness package. Add integration coverage through a test-only
+callable or a consuming project that supplies `--target module:function`.
+
 ## Guidelines
 
 - Keep gate thresholds in `veris/config.py` — do not hardcode floors in the runner.
-- Prefer tests that avoid live LLM calls (monkeypatch `runner.score_deepeval` / `score_ragas`).
+- Prefer tests that avoid live LLM calls (monkeypatch `runner.score_deepeval`).
 - Metric applicability belongs on `MetricSpec` (`requires_retrieval_context`, etc.).
 - User-facing product name is **Veris**; Python package / CLI is `veris`.
 - Do not commit `.env`, trend/cache DBs, or report artifacts.

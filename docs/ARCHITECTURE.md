@@ -1,7 +1,10 @@
 # Architecture
 
-Veris is a **local regression gate** (CI optional): golden cases → target execution
+Veris is a **local regression gate**: golden cases → target execution
 → LLM-as-judge scoring → baseline comparison → pass/fail exit code.
+
+For installation, target integration, dataset authoring, commands, and
+troubleshooting, see [the user guide](USER_GUIDE.md).
 
 ## Pipeline
 
@@ -19,7 +22,7 @@ Veris is a **local regression gate** (CI optional): golden cases → target exec
 ┌─────────────────┐
 │  Score cache    │  SHA256(case + output + judge + metrics fingerprint)
 └────────┬────────┘
-         │ miss → DeepEval + RAGAS (shared judge, concurrency semaphore)
+         │ miss → DeepEval (shared judge, concurrency semaphore)
          ▼
 ┌─────────────────┐
 │  Regression     │  absolute min_score + rolling median ± stdev band
@@ -28,7 +31,7 @@ Veris is a **local regression gate** (CI optional): golden cases → target exec
          │ incremental SQLite writes (crash-safe)
          ▼
 ┌─────────────────┐
-│  Reports        │  Rich / JSON / HTML / CSV + optional Langfuse
+│  Reports        │  Rich / JSON / HTML / CSV
 └─────────────────┘
 ```
 
@@ -42,13 +45,12 @@ Veris is a **local regression gate** (CI optional): golden cases → target exec
 | `veris.trend_store` | SQLite baselines, history, usage, prune |
 | `veris.cache` | Content-addressable score cache |
 | `veris.judge_model` | Groq / OpenRouter judge + token accounting |
-| `veris.metrics.*` | DeepEval + RAGAS suites |
+| `veris.metrics.*` | DeepEval suite |
 | `veris.report` | Terminal / JSON / HTML / CSV |
-| `veris.langfuse_tracker` | Optional observability (SDK v3/v4 + legacy) |
 | `veris.golden_dataset` | YAML loader |
 | `veris.config` | All thresholds (`MetricSpec`, `Settings`) |
 | `veris.flakiness` | `--repeat N` spread analysis |
-| `veris.targets` | OpenAI-compatible target (stream + timeout + one transient retry) |
+| user target | Callable supplied via `--target module:function` |
 
 ## Gate semantics
 

@@ -1,10 +1,12 @@
 # Veris
 
-**Veris** is a local regression checker for LLM and agent systems.
+**Veris** is an agent-agnostic, local LLM regression testing and agent
+evaluation gate. It runs your golden dataset against your callable, scores the
+outputs with DeepEval, compares them with a rolling SQLite baseline, and
+returns a reliable pass/fail exit code.
 
-It runs a golden dataset against your target, scores outputs with DeepEval and
-RAGAS, compares results to a rolling SQLite baseline, and exits non-zero when
-quality regresses. You run it when you want — nothing fires on commit or push.
+It is deliberately small and explicit: no bundled agent, no hosted dashboard,
+no automatic commit hooks, and no required observability service.
 
 Veris is a **gate**, not a dashboard. It answers three questions:
 
@@ -21,25 +23,20 @@ golden_dataset/*.yaml          # cases: input, expected_output, context, tags
 veris.runner                   # invoke target, collect actual_output
         │
         ├──► metrics.deepeval  (faithfulness, relevancy, hallucination, toxicity)
-        ├──► metrics.ragas     (context precision/recall, answer correctness)
         │
         ▼
 veris.trend_store              # SQLite history keyed by git sha + timestamp
         │
         ▼
 veris.regression_gate          # absolute floors + rolling median/stdev band
-        │
-        ▼
-veris.langfuse_tracker         # optional traces + per-metric scores
-        │
-        ▼
 veris.report                   # Rich terminal + JSON / HTML / CSV
         │
         ▼
-   exit 0 / 1  ──► pass / fail (local or optional CI)
+   exit 0 / 1  ──► pass / fail (local)
 ```
 
-More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+More detail: [the architecture](docs/ARCHITECTURE.md) and the
+[complete user guide](docs/USER_GUIDE.md).
 
 ## Quickstart
 
@@ -48,23 +45,21 @@ pip install -e .
 # or: pip install -r requirements.txt
 
 cp .env.example .env
-# set GROQ_API_KEY (required); OPENROUTER_API_KEY optional fallback; LANGFUSE_* optional
+# set GROQ_API_KEY (required); OPENROUTER_API_KEY optional fallback
 
 # seed a baseline once against a known-good build
-python scripts/seed_baseline.py --target veris.targets:my_agent_fn --n 3
+python scripts/seed_baseline.py --target your_agent_module:your_callable --n 3
 
 # preview what will run (zero LLM calls)
-veris run --target veris.targets:my_agent_fn --dry-run
-# equivalent: python -m veris.cli run --target veris.targets:my_agent_fn --dry-run
+veris run --target your_agent_module:your_callable --dry-run
+# equivalent: python -m veris.cli run --target your_agent_module:your_callable --dry-run
 
-# run the gate
-veris run --target veris.targets:my_agent_fn
+# run the gate; your callable lives in your own project/module
+veris run --target your_agent_module:your_callable
 ```
 
-`veris.targets.my_agent_fn` calls an OpenAI-compatible Chat Completions
-endpoint (streamed, 30s timeout, one retry on connection/5xx errors).
-Configure via `TARGET_PROVIDER` / `TARGET_MODEL` / `TARGET_BASE_URL`
-(see `.env.example`), or replace the callable with any `Callable[[str], str]`.
+Your target must be a callable accepting the case input string and returning
+the target output string. Veris does not ship an agent implementation.
 
 ## CLI reference
 
@@ -83,6 +78,21 @@ Configure via `TARGET_PROVIDER` / `TARGET_MODEL` / `TARGET_BASE_URL`
 | `veris prune --days N` | Trim old trend-store rows |
 
 Makefile shortcuts: `make run`, `make dry-run`, `make test`, `make seed`, …
+For the target-dependent shortcuts, provide `TARGET=module:function`.
+
+## Your target contract
+
+Veris does not implement or call a specific agent framework. Your target is
+just a callable that accepts one string and returns one string:
+
+```python
+def answer(case_input: str) -> str:
+    return my_agent.invoke(case_input)
+```
+
+Run it with `--target your_module:answer`. This keeps Veris compatible with
+LangGraph, FastAPI clients, local agents, RAG pipelines, and ordinary Python
+functions without coupling the harness to any of them.
 
 ## Configuration
 
@@ -98,14 +108,13 @@ blocking vs advisory metrics are config-driven.
 | `EVAL_JUDGE_PROVIDER` | `groq` (default) or `openrouter` |
 | `GOLDEN_DATASET_DIR` | YAML cases directory (default `./golden_dataset`) |
 | `TREND_DB_PATH` | SQLite trend store (default `./veris_trends.db`) |
-| `LANGFUSE_PUBLIC_KEY` / `SECRET_KEY` / `HOST` | Optional tracing |
 
 See [`.env.example`](.env.example).
 
 ## Metric applicability
 
 Not every metric applies to every case. Metrics that need retrieval context
-(`faithfulness`, `hallucination`, `context_*`, `answer_correctness`) are
+(`faithfulness`, `hallucination`) are
 **N/A** — not blocking failures — when `retrieval_context` is empty.
 
 Context-free cases (safety / tone / clarification) are gated on
@@ -127,7 +136,7 @@ Add more `*.yaml` / `*.yml` files; the loader globs the directory. Each case
 supports tags for subset runs:
 
 ```bash
-veris run --target veris.targets:my_agent_fn --tags retrieval,edge-case
+veris run --target your_agent_module:your_callable --tags retrieval,edge-case
 ```
 
 ```yaml
@@ -151,24 +160,25 @@ A metric blocks the run when either:
 
 Advisory metrics are recorded and shown but do not flip the exit code.
 
-## Optional CI (manual only)
+## Continuous integration
 
-CI is **off by default**. Commits and pushes do not trigger anything.
+This repository intentionally has no GitHub Actions workflow. Veris is a
+local/manual gate, and it does not run on commits or pushes. Run checks locally:
 
-If you want GitHub Actions later, [`.github/workflows/veris-gate.yml`](.github/workflows/veris-gate.yml)
-is wired for **manual** runs only (`workflow_dispatch`):
+```powershell
+make test
+make TARGET=your_agent_module:your_callable dry-run
+make TARGET=your_agent_module:your_callable run
+```
 
-1. Open **Actions → veris-gate → Run workflow**
-2. Unit tests always run; the live gate runs only when `GROQ_API_KEY` is set
-3. Reports upload as artifacts; trend DBs are cached across manual runs
-
-Day to day, prefer local commands: `make test`, `make run`, `make seed`.
+Projects embedding Veris may add their own CI workflow around the CLI.
 
 ## Docker
 
 ```bash
 docker build -t veris .
-docker run --rm -e GROQ_API_KEY -v veris-data:/app/data veris
+docker run --rm -e GROQ_API_KEY -v veris-data:/app/data veris \
+  run --target your_agent_module:your_callable
 ```
 
 ## Development
@@ -190,7 +200,6 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 | Safety/tone cases fail on hallucination | Old config without applicability | Upgrade; those metrics are N/A without context |
 | No regression sensitivity | Fewer than `min_baseline_samples` green runs | `make seed` |
 | Stale scores after config change | Cache still hot | `veris cache-clear` (config fingerprint also invalidates automatically) |
-| Langfuse silent | Keys unset or SDK mismatch | Optional; Veris continues without tracing |
 
 ## License
 

@@ -5,7 +5,7 @@ regression gate falls back to absolute floors only (still safe, just
 less sensitive).
 
 Usage:
-    python scripts/seed_baseline.py --target veris.targets:my_agent_fn --n 3
+    python scripts/seed_baseline.py --target your_agent_module:your_callable --n 3
 """
 import argparse
 import importlib
