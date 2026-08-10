@@ -13,9 +13,11 @@ serializes writes but that's fine — writes are microseconds vs the seconds
 of LLM-judge latency per case, so it's not the bottleneck."""
 from __future__ import annotations
 
+import math
 import sqlite3
 import statistics
 import threading
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from .config import SETTINGS
@@ -57,6 +59,14 @@ CREATE TABLE IF NOT EXISTS judge_usage (
 """
 
 
+def _utc_now_iso() -> str:
+    """Single canonical timestamp format for all trend-store writes.
+
+    Mixing SQLite `datetime('now')` (space-separated, no offset) with Python
+    `isoformat()` broke lexicographic ORDER BY / prune comparisons."""
+    return datetime.now(UTC).isoformat()
+
+
 class TrendStore:
     def __init__(self, db_path: Path | None = None):
         self.db_path = Path(db_path or SETTINGS.trend_db_path)
@@ -64,9 +74,29 @@ class TrendStore:
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30)
         self.conn.execute("PRAGMA journal_mode=WAL;")
         self.conn.execute("PRAGMA synchronous=NORMAL;")
+        self.conn.execute("PRAGMA foreign_keys=ON;")
         with self._lock:
             self.conn.executescript(_SCHEMA)
+            # Dedupe before unique index — CREATE UNIQUE INDEX fails if legacy
+            # duplicate (run, case, metric) rows already exist.
+            self._dedupe_case_scores()
+            self.conn.execute(
+                """CREATE UNIQUE INDEX IF NOT EXISTS idx_case_scores_unique
+                   ON case_scores(run_id, case_id, metric_name)"""
+            )
             self.conn.commit()
+
+    def _dedupe_case_scores(self) -> None:
+        """Collapse legacy duplicate rows; keep the latest rowid per key."""
+        self.conn.execute(
+            """
+            DELETE FROM case_scores
+            WHERE rowid NOT IN (
+                SELECT MAX(rowid) FROM case_scores
+                GROUP BY run_id, case_id, metric_name
+            )
+            """
+        )
 
     def begin_run(self, run_id: str, git_sha: str | None, total_cases: int) -> None:
         """Insert a stub parent `runs` row before incremental case_scores
@@ -77,8 +107,8 @@ class TrendStore:
                 """INSERT OR REPLACE INTO runs
                    (run_id, git_sha, timestamp, composite_score, passed,
                     total_cases, failed_cases, regressed_cases, duration_s)
-                   VALUES (?,?,datetime('now'),0.0,0,?,?,?,0.0)""",
-                (run_id, git_sha, total_cases, 0, 0),
+                   VALUES (?,?,?,0.0,0,?,?,?,0.0)""",
+                (run_id, git_sha, _utc_now_iso(), total_cases, 0, 0),
             )
             self.conn.commit()
 
@@ -89,13 +119,16 @@ class TrendStore:
         write_case_scores=False to avoid inserting duplicates."""
         with self._lock:
             c = self.conn.cursor()
+            ts = report.timestamp
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=UTC)
             c.execute(
                 """INSERT OR REPLACE INTO runs
                    (run_id, git_sha, timestamp, composite_score, passed,
                     total_cases, failed_cases, regressed_cases, duration_s)
                    VALUES (?,?,?,?,?,?,?,?,?)""",
                 (
-                    report.run_id, report.git_sha, report.timestamp.isoformat(),
+                    report.run_id, report.git_sha, ts.isoformat(),
                     report.composite_score, int(report.passed), report.total_cases,
                     report.failed_cases, report.regressed_cases, report.duration_s,
                 ),
@@ -103,11 +136,19 @@ class TrendStore:
             if write_case_scores:
                 for cr in report.case_results:
                     for metric_name, score in cr.scores.items():
+                        if not isinstance(score, (int, float)) or isinstance(score, bool):
+                            continue
+                        if not math.isfinite(float(score)):
+                            continue
                         c.execute(
                             """INSERT INTO case_scores
                                (run_id, case_id, metric_name, score, passed_run)
-                               VALUES (?,?,?,?,?)""",
-                            (report.run_id, cr.case_id, metric_name, score, int(report.passed)),
+                               VALUES (?,?,?,?,?)
+                               ON CONFLICT(run_id, case_id, metric_name) DO UPDATE SET
+                                 score=excluded.score,
+                                 passed_run=excluded.passed_run""",
+                            (report.run_id, cr.case_id, metric_name, float(score),
+                             int(report.passed)),
                         )
             self.conn.commit()
 
@@ -115,11 +156,18 @@ class TrendStore:
                          score: float, passed_run: bool) -> None:
         """Incremental write used by the runner as each case finishes, so a
         crash mid-run doesn't lose every case that already completed."""
+        if not isinstance(score, (int, float)) or isinstance(score, bool):
+            return
+        if not math.isfinite(float(score)):
+            return
         with self._lock:
             self.conn.execute(
                 """INSERT INTO case_scores (run_id, case_id, metric_name, score, passed_run)
-                   VALUES (?,?,?,?,?)""",
-                (run_id, case_id, metric_name, score, int(passed_run)),
+                   VALUES (?,?,?,?,?)
+                   ON CONFLICT(run_id, case_id, metric_name) DO UPDATE SET
+                     score=excluded.score,
+                     passed_run=excluded.passed_run""",
+                (run_id, case_id, metric_name, float(score), int(passed_run)),
             )
             self.conn.commit()
 
@@ -133,6 +181,7 @@ class TrendStore:
             SELECT cs.score FROM case_scores cs
             JOIN runs r ON cs.run_id = r.run_id
             WHERE cs.case_id = ? AND cs.metric_name = ?
+              AND cs.score IS NOT NULL
         """
         params: list = [case_id, metric_name]
         if green_only:
@@ -142,7 +191,7 @@ class TrendStore:
 
         with self._lock:
             rows = self.conn.execute(query, params).fetchall()
-        scores = [r[0] for r in rows]
+        scores = [r[0] for r in rows if isinstance(r[0], (int, float)) and math.isfinite(r[0])]
         if len(scores) < 1:
             return None
         median = statistics.median(scores)
@@ -184,6 +233,8 @@ class TrendStore:
             ).fetchall()
         out: dict[str, dict[str, float]] = {}
         for case_id, metric_name, score in rows:
+            if not isinstance(score, (int, float)) or not math.isfinite(score):
+                continue
             out.setdefault(case_id, {})[metric_name] = score
         return out
 
@@ -238,11 +289,17 @@ class TrendStore:
     def prune_older_than(self, days: int) -> int:
         """Deletes runs (and their case_scores/judge_usage) older than N
         days. The trend store grows unbounded otherwise — fine for a
-        while, but worth having before it's a problem."""
+        while, but worth having before it's a problem.
+
+        `days` must be >= 1 so a typo of 0 cannot wipe the entire history
+        via `timestamp < now`."""
+        if days < 1:
+            raise ValueError(f"prune days must be >= 1, got {days}")
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
         with self._lock:
             cutoff_rows = self.conn.execute(
-                "SELECT run_id FROM runs WHERE timestamp < datetime('now', ?)",
-                (f"-{days} days",),
+                "SELECT run_id FROM runs WHERE timestamp < ?",
+                (cutoff,),
             ).fetchall()
             run_ids = [r[0] for r in cutoff_rows]
             if not run_ids:

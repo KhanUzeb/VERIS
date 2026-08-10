@@ -68,6 +68,7 @@ def test_circuit_breaker_abort_persists_run_and_closes(tmp_path, monkeypatch):
 def test_repeat_scores_bypass_cache_and_record_flaky_mean(tmp_path, monkeypatch):
     case = GoldenCase(id="repeat", input="q")
     store = TrendStore(db_path=tmp_path / "repeat.db")
+    store.begin_run("run", None, 1)
     breaker = runner._CircuitBreaker(threshold=5)
     calls = iter((0.1, 0.9, 0.1))
     monkeypatch.setattr(runner, "score_deepeval", lambda *_a, **_k: {"toxicity": next(calls)})
@@ -126,4 +127,18 @@ def test_fail_fast_runs_fewer_cases(tmp_path, monkeypatch):
 
     store = TrendStore(db_path=tmp_path / "ff.db")
     assert store.recent_runs(limit=1)[0]["total_cases"] == 5
+    store.close()
+
+
+def test_target_non_string_return_is_case_error(tmp_path, monkeypatch):
+    case = GoldenCase(id="bad-type", input="q")
+    store = TrendStore(db_path=tmp_path / "type.db")
+    store.begin_run("run", None, 1)
+    breaker = runner._CircuitBreaker(threshold=5)
+
+    result = runner._run_one_case(
+        case, lambda _text: 123, store, "run", None, "judge", 1, breaker, None,
+    )
+    assert result.passed_min_score is False
+    assert result.error and "expected str" in result.error
     store.close()

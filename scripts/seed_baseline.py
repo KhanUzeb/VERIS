@@ -10,8 +10,12 @@ Usage:
 import argparse
 import importlib
 import sys
+from pathlib import Path
 
-sys.path.insert(0, ".")
+# Ensure project cwd is importable (same issue as the `veris` console script).
+_cwd = str(Path.cwd().resolve())
+if _cwd not in sys.path:
+    sys.path.insert(0, _cwd)
 
 from veris.report import print_report  # noqa: E402
 from veris.runner import run_gate  # noqa: E402
@@ -19,7 +23,15 @@ from veris.runner import run_gate  # noqa: E402
 
 def resolve(dotted):
     mod, _, fn = dotted.partition(":")
-    return getattr(importlib.import_module(mod), fn)
+    if not mod or not fn:
+        raise SystemExit("target must be 'module.path:function_name'")
+    try:
+        target = getattr(importlib.import_module(mod), fn)
+    except (ImportError, AttributeError) as e:
+        raise SystemExit(f"could not load target {dotted!r}: {e}") from e
+    if not callable(target):
+        raise SystemExit(f"target {dotted!r} is not callable")
+    return target
 
 
 if __name__ == "__main__":

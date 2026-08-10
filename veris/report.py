@@ -64,7 +64,18 @@ def print_report(report: RunReport) -> None:
         for cr in report.case_results:
             if not cr.passed_min_score and cr.regression_detail:
                 console.print(Text(f"  {cr.case_id}: {cr.regression_detail}", style=_FAIL))
+            elif cr.error:
+                console.print(Text(f"  {cr.case_id}: {cr.error}", style=_FAIL))
 
+
+def _case_status(cr) -> str:
+    if cr.error:
+        return "ERROR"
+    if not cr.passed_min_score:
+        return "FAIL"
+    if cr.regressed:
+        return "REGRESSED"
+    return "PASS"
 
 def write_json_report(report: RunReport, path: str | Path) -> None:
     path = Path(path)
@@ -84,14 +95,7 @@ def write_csv_report(report: RunReport, path: str | Path) -> None:
         )
         writer.writeheader()
         for cr in report.case_results:
-            if cr.error:
-                status = "ERROR"
-            elif not cr.passed_min_score:
-                status = "FAIL"
-            elif cr.regressed:
-                status = "REGRESSED"
-            else:
-                status = "PASS"
+            status = _case_status(cr)
             if not cr.scores:
                 writer.writerow({
                     "run_id": report.run_id,
@@ -133,11 +137,11 @@ def write_html_report(report: RunReport, path: str | Path, trend_history: list[d
     path = Path(path)
     esc = html_lib.escape
     rows = "\n".join(
-        f"<tr class='{'fail' if not cr.passed_min_score else ('regressed' if cr.regressed else 'pass')}'>"
+        f"<tr class='{'fail' if (cr.error or not cr.passed_min_score) else ('regressed' if cr.regressed else 'pass')}'>"
         f"<td>{esc(cr.case_id)}</td>"
-        f"<td>{'FAIL' if not cr.passed_min_score else ('REGRESSED' if cr.regressed else 'PASS')}</td>"
-        f"<td>{esc(json.dumps(cr.scores))}</td><td>{cr.latency_ms:.0f}ms</td>"
-        f"<td>{esc(cr.regression_detail or '')}</td></tr>"
+        f"<td>{esc(_case_status(cr))}</td>"
+        f"<td>{esc(cr.error or json.dumps(cr.scores))}</td><td>{cr.latency_ms:.0f}ms</td>"
+        f"<td>{esc(cr.regression_detail or cr.error or '')}</td></tr>"
         for cr in report.case_results
     )
 

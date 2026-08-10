@@ -275,6 +275,7 @@ can wrap the CLI in their own CI workflow and provide their own
 | `veris/schemas.py` | Dataset, case-result, and run-report models. |
 | `veris/report.py` | Terminal, JSON, HTML, and CSV output. |
 | `veris/flakiness.py` | Repeat-score spread analysis. |
+| `docs/HARDENING.md` | Logic-hole review notes and mitigations. |
 | `golden_dataset/` | Golden cases supplied to the harness. |
 | `scripts/seed_baseline.py` | Known-good baseline seeding helper. |
 | `tests/` | Offline regression tests for the harness itself. |
@@ -285,6 +286,9 @@ can wrap the CLI in their own CI workflow and provide their own
 |---|---|---|
 | `could not load target` | Wrong import path or non-callable symbol. | Check `module:function`; run from the project environment. |
 | Empty scores / circuit breaker | Judge key, model, provider, or network failure. | Test provider access and credentials; do not accept an empty-score run. |
+| `invalid score` / NaN in detail | Judge returned non-finite metric values. | Treat as judge failure; check provider responses / retries. |
+| Target `expected str` ERROR | Callable returned a non-string. | Coerce to `str` in your target wrapper. |
+| Accidental full history wipe | `--days 0` used to be allowed. | Prune requires `--days >= 1`. |
 | Many metric-missing messages | Judge suite failed partially or cache contains old data. | Run `veris cache-clear`, then retry. |
 | No regression sensitivity | Not enough green baseline samples. | Seed at least `min_baseline_samples` trusted runs. |
 | Target output is stale | Target or wrapper is caching its own response. | Disable target-side caching for evaluation or include version inputs. |

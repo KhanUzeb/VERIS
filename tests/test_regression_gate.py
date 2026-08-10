@@ -49,6 +49,43 @@ def test_empty_scores_fail_gate(tmp_path):
     store.close()
 
 
+def test_nan_and_none_scores_fail_gate(tmp_path):
+    """NaN comparisons are always False in Python — must not green-pass."""
+    store = TrendStore(db_path=tmp_path / "nan.db")
+    case = make_case()
+    result = evaluate_case(
+        case,
+        "broken judge",
+        {
+            "faithfulness": float("nan"),
+            "answer_relevancy": None,  # type: ignore[dict-item]
+            "hallucination": 0.95,
+            "toxicity": 0.95,
+        },
+        10.0,
+        store,
+    )
+    assert result.passed_min_score is False
+    detail = result.regression_detail or ""
+    assert "invalid score" in detail
+    assert "faithfulness" not in result.scores  # stripped
+    assert "hallucination" in result.scores
+    store.close()
+
+
+def test_inf_score_fails_gate(tmp_path):
+    store = TrendStore(db_path=tmp_path / "inf.db")
+    case = make_case()
+    result = evaluate_case(
+        case, "x", {"faithfulness": float("inf"), "answer_relevancy": 0.95,
+                    "hallucination": 0.95, "toxicity": 0.95},
+        1.0, store,
+    )
+    assert result.passed_min_score is False
+    assert "invalid score" in (result.regression_detail or "")
+    store.close()
+
+
 def test_missing_blocking_metric_fails(tmp_path):
     store = TrendStore(db_path=tmp_path / "t.db")
     case = make_case()

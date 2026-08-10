@@ -103,6 +103,30 @@ def test_print_report_renders_all_statuses(monkeypatch):
         assert status in output
 
 
+def test_html_report_shows_error_status(tmp_path):
+    report = RunReport(
+        run_id="r-err",
+        case_results=[
+            CaseResult(
+                case_id="boom",
+                input="x",
+                actual_output="",
+                scores={},
+                latency_ms=1.0,
+                passed_min_score=False,
+                error="target raised: boom",
+            )
+        ],
+        total_cases=1,
+        failed_cases=1,
+    )
+    path = tmp_path / "err.html"
+    write_html_report(report, path)
+    html = path.read_text(encoding="utf-8")
+    assert ">ERROR<" in html
+    assert "target raised: boom" in html
+
+
 def test_sparkline_edge_cases():
     assert _sparkline([]) == ""
     assert len(_sparkline([0.5])) == 1

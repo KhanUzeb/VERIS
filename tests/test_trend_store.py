@@ -56,11 +56,13 @@ def test_get_case_scores_returns_nested_dict(tmp_path):
     store.close()
 
 
-def test_orphan_case_scores_invisible_to_baseline(tmp_path):
-    """Without a parent runs row, JOIN-based baseline ignores scores."""
+def test_orphan_case_scores_rejected_with_foreign_keys(tmp_path):
+    """Foreign keys prevent dangling case_scores that would never join."""
+    import pytest
+
     store = TrendStore(db_path=tmp_path / "orphan.db")
-    store.save_case_score("orphan-run", "c1", "faithfulness", 0.9, True)
-    assert store.baseline_for_case_metric("c1", "faithfulness", window=10, green_only=False) is None
+    with pytest.raises(Exception):
+        store.save_case_score("orphan-run", "c1", "faithfulness", 0.9, True)
     store.close()
 
 
@@ -87,4 +89,37 @@ def test_begin_run_makes_incremental_scores_joinable(tmp_path):
     assert green is not None
     assert green[0] == 0.88
     assert store.get_run(run_id)["passed"] == 1
+    store.close()
+
+
+def test_begin_run_uses_isoformat_timestamp(tmp_path):
+    store = TrendStore(db_path=tmp_path / "ts.db")
+    store.begin_run("r-ts", git_sha="abc", total_cases=1)
+    row = store.get_run("r-ts")
+    assert row is not None
+    # Canonical form is Python UTC isoformat, not SQLite `datetime('now')`.
+    assert "T" in row["timestamp"]
+    store.close()
+
+
+def test_duplicate_case_scores_upsert_not_inflate_baseline(tmp_path):
+    store = TrendStore(db_path=tmp_path / "dup.db")
+    rr = RunReport(run_id="r1", composite_score=0.9, passed=True, total_cases=1)
+    store.save_run(rr, write_case_scores=False)
+    store.save_case_score("r1", "c1", "faithfulness", 0.9, True)
+    store.save_case_score("r1", "c1", "faithfulness", 0.85, True)  # upsert
+    scores = store.get_case_scores("r1")
+    assert scores["c1"]["faithfulness"] == 0.85
+    baseline = store.baseline_for_case_metric("c1", "faithfulness", window=10)
+    assert baseline is not None
+    assert baseline[2] == 1  # not inflated by duplicates
+    store.close()
+
+
+def test_prune_rejects_days_below_one(tmp_path):
+    import pytest
+
+    store = TrendStore(db_path=tmp_path / "prune.db")
+    with pytest.raises(ValueError, match=">= 1"):
+        store.prune_older_than(0)
     store.close()

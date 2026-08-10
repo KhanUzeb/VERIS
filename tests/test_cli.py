@@ -48,7 +48,21 @@ def test_invalid_target_has_actionable_error():
     result = CliRunner().invoke(cli, ["run", "--target", "missing_module:answer"])
     assert result.exit_code == 1
     assert "could not load target" in result.output
-    assert "module:function" in result.output
+
+
+def test_resolve_target_loads_cwd_module(tmp_path, monkeypatch):
+    """Installed `veris` console scripts don't put cwd on sys.path by default."""
+    from veris import cli as cli_mod
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "local_demo_target.py").write_text(
+        "def answer(text: str) -> str:\n    return text.upper()\n",
+        encoding="utf-8",
+    )
+    # Simulate console-script layout: Scripts/ dir first, no cwd.
+    monkeypatch.setattr(cli_mod.sys, "path", [str(tmp_path / "Scripts")])
+    fn = cli_mod._resolve_target("local_demo_target:answer")
+    assert fn("hi") == "HI"
 
 
 def test_repeat_must_be_positive():

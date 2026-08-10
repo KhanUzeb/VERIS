@@ -49,6 +49,17 @@ def test_cache_stats_tracks_hits(tmp_path):
     cache.close()
 
 
+def test_cache_rejects_nan_scores(tmp_path):
+    cache = ScoreCache(db_path=tmp_path / "nan.db")
+    case = make_case()
+    key = cache_key(case, "4", "groq/test-model")
+    cache.set(key, {"faithfulness": float("nan")})
+    assert cache.get(key) is None
+    cache.set(key, {"faithfulness": 0.9})
+    assert cache.get(key) == {"faithfulness": 0.9}
+    cache.close()
+
+
 def test_partial_scores_are_not_reused_as_complete_cache_hits(monkeypatch, tmp_path):
     import veris.runner as runner
 

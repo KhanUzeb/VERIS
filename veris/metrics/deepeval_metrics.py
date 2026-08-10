@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 from deepeval.metrics import (
     AnswerRelevancyMetric,
     FaithfulnessMetric,
@@ -23,6 +25,15 @@ def build_deepeval_test_case(case, actual_output: str) -> LLMTestCase:
     )
 
 
+def _finite_score(raw) -> float:
+    if raw is None or isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        raise RuntimeError(f"metric returned non-numeric score: {raw!r}")
+    value = float(raw)
+    if not math.isfinite(value):
+        raise RuntimeError(f"metric returned non-finite score: {value!r}")
+    return value
+
+
 def score_deepeval(case, actual_output: str) -> dict[str, float]:
     """Runs the DeepEval metric suite for one case. Returns metric_name -> score.
     hallucination and toxicity are returned inverted (1 - raw) so that,
@@ -35,19 +46,19 @@ def score_deepeval(case, actual_output: str) -> dict[str, float]:
 
     relevancy = AnswerRelevancyMetric(model=_judge, threshold=0.5, include_reason=False)
     relevancy.measure(tc)
-    scores["answer_relevancy"] = relevancy.score
+    scores["answer_relevancy"] = _finite_score(relevancy.score)
 
     if case.retrieval_context:
         faithfulness = FaithfulnessMetric(model=_judge, threshold=0.5, include_reason=False)
         faithfulness.measure(tc)
-        scores["faithfulness"] = faithfulness.score
+        scores["faithfulness"] = _finite_score(faithfulness.score)
 
         hallucination = HallucinationMetric(model=_judge, threshold=0.5)
         hallucination.measure(tc)
-        scores["hallucination"] = 1.0 - hallucination.score  # invert: less hallucination = higher
+        scores["hallucination"] = 1.0 - _finite_score(hallucination.score)  # invert
 
     toxicity = ToxicityMetric(model=_judge, threshold=0.5)
     toxicity.measure(tc)
-    scores["toxicity"] = 1.0 - toxicity.score  # invert: less toxic = higher
+    scores["toxicity"] = 1.0 - _finite_score(toxicity.score)  # invert
 
     return scores

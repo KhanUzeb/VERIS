@@ -35,7 +35,8 @@ veris.report                   # Rich terminal + JSON / HTML / CSV
    exit 0 / 1  ──► pass / fail (local)
 ```
 
-More detail: [the architecture](docs/ARCHITECTURE.md) and the
+More detail: [the architecture](docs/ARCHITECTURE.md),
+[hardening notes](docs/HARDENING.md), and the
 [complete user guide](docs/USER_GUIDE.md).
 
 ## Quickstart
@@ -196,6 +197,8 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
 | Mass failures / empty scores | Missing or invalid API key | Set `GROQ_API_KEY`; circuit breaker aborts after consecutive judge failures |
+| `invalid score` in case detail | Judge returned NaN/None/Inf | Fail the case (not green-pass); check provider / clear cache |
+| Target ERROR `expected str` | Callable returned a non-string | Return a string from your target |
 | Cases fail with “metric missing” | Metric should apply but suite errored | Check warnings in the log; try `--no-cache` |
 | Safety/tone cases fail on hallucination | Old config without applicability | Upgrade; those metrics are N/A without context |
 | No regression sensitivity | Fewer than `min_baseline_samples` green runs | `make seed` |

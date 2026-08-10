@@ -20,11 +20,22 @@ blocking failure.
 """
 from __future__ import annotations
 
+import math
+from typing import Any
+
 from .config import SETTINGS, MetricSpec
 from .schemas import CaseResult, GoldenCase
 from .trend_store import TrendStore
 
 _METRIC_LOOKUP: dict[str, MetricSpec] = {m.name: m for m in SETTINGS.metrics}
+
+
+def _is_finite_number(value: Any) -> bool:
+    """Reject None/NaN/Inf — NaN comparisons are always False in Python, which
+    would otherwise green-pass a broken judge response through the floor check."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    return math.isfinite(float(value))
 
 
 def evaluate_case(
@@ -51,10 +62,23 @@ def evaluate_case(
             regression_detail="no scores produced",
         )
 
+    # Drop non-finite values so they are treated as missing (not as silent passes).
+    clean_scores: dict[str, float] = {}
+    for metric_name, score in scores.items():
+        if _is_finite_number(score):
+            clean_scores[metric_name] = float(score)
+        else:
+            regression_notes.append(f"{metric_name} invalid score {score!r} [BLOCKING]")
+            # Invalid values for configured blocking metrics fail the gate;
+            # unknown metric names are still reported but advisory-only.
+            spec = _METRIC_LOOKUP.get(metric_name)
+            if spec is None or spec.blocking:
+                passed_min_score = False
+
     # Missing applicable blocking metrics (partial suite failure) fail the gate.
     # Inapplicable metrics are noted as N/A and do not flip passed_min_score.
     for spec in SETTINGS.metrics:
-        if spec.name in scores:
+        if spec.name in clean_scores:
             continue
         if not spec.is_applicable(case):
             regression_notes.append(f"{spec.name} N/A for this case")
@@ -66,7 +90,7 @@ def evaluate_case(
         else:
             regression_notes.append(f"{note} [advisory]")
 
-    for metric_name, score in scores.items():
+    for metric_name, score in clean_scores.items():
         spec = _METRIC_LOOKUP.get(metric_name)
         if spec is None:
             continue  # advisory metric with no config entry — report only
@@ -113,7 +137,7 @@ def evaluate_case(
         case_id=case.id,
         input=case.input,
         actual_output=actual_output,
-        scores=scores,
+        scores=clean_scores,
         latency_ms=latency_ms,
         passed_min_score=passed_min_score,
         regressed=regressed,
@@ -126,8 +150,10 @@ def composite_score(case_results: list[CaseResult]) -> float:
     weighted_sum = 0.0
     for cr in case_results:
         for metric_name, score in cr.scores.items():
+            if not _is_finite_number(score):
+                continue
             spec = _METRIC_LOOKUP.get(metric_name)
             weight = spec.weight if spec else 0.5
-            weighted_sum += score * weight
+            weighted_sum += float(score) * weight
             total_weight += weight
     return weighted_sum / total_weight if total_weight else 0.0

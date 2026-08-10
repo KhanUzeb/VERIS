@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import subprocess
 import sys
+from pathlib import Path
 
 import click
 from rich.console import Console
@@ -19,6 +20,15 @@ from .trend_store import TrendStore
 console = Console()
 
 
+def _ensure_cwd_on_path() -> None:
+    """Console-script entry points often put Scripts/ on sys.path[0], not cwd.
+    Prepend the working directory so `--target demo_target:answer` works when
+    the module lives in the project you're running from."""
+    cwd = str(Path.cwd().resolve())
+    if cwd not in sys.path:
+        sys.path.insert(0, cwd)
+
+
 def _resolve_target(dotted_path: str):
     """'module.path:function_name' -> the actual callable."""
     module_path, _, func_name = dotted_path.partition(":")
@@ -26,13 +36,15 @@ def _resolve_target(dotted_path: str):
         raise click.BadParameter(
             "target must be 'module.path:function_name'", param_hint="--target"
         )
+    _ensure_cwd_on_path()
     try:
         module = importlib.import_module(module_path)
         target = getattr(module, func_name)
     except (ImportError, AttributeError) as e:
         raise click.ClickException(
             f"could not load target {dotted_path!r}: {e}. "
-            "Use a callable in the form module:function."
+            "Use a callable in the form module:function, and run from the "
+            "directory that contains that module (or set PYTHONPATH)."
         ) from e
     if not callable(target):
         raise click.ClickException(f"target {dotted_path!r} is not callable")
@@ -71,7 +83,9 @@ def cli():
 @click.option("--dry-run", is_flag=True, help="show the plan without importing the target or making LLM calls")
 def run(target, tags, json_out, html_out, csv_out, no_cache, repeat, fail_fast, dry_run):
     """Run the golden set against TARGET and gate on regressions."""
-    tag_list = [t.strip() for t in tags.split(",")] if tags else None
+    tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else None
+    if tags is not None and tag_list is not None and not tag_list:
+        raise click.BadParameter("tags must contain at least one non-empty tag", param_hint="--tags")
 
     if dry_run:
         from .golden_dataset import load_golden_cases
@@ -128,7 +142,9 @@ def list_cases(dataset_dir, tags):
     from .golden_dataset import load_golden_cases
 
     target_dir = dataset_dir or SETTINGS.golden_dataset_dir
-    tag_list = [t.strip() for t in tags.split(",")] if tags else None
+    tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else None
+    if tags is not None and tag_list is not None and not tag_list:
+        raise click.BadParameter("tags must contain at least one non-empty tag", param_hint="--tags")
     cases = load_golden_cases(target_dir, tags=tag_list)
 
     table = Table(title=f"golden cases ({len(cases)})")
@@ -353,8 +369,8 @@ def usage(limit):
 
 
 @cli.command()
-@click.option("--days", default=90, type=click.IntRange(min=0), show_default=True,
-              help="delete runs older than this many days")
+@click.option("--days", default=90, type=click.IntRange(min=1), show_default=True,
+              help="delete runs older than this many days (minimum 1)")
 @click.option("--yes", is_flag=True, help="skip confirmation prompt")
 def prune(days, yes):
     """Delete old runs from the trend store. The DB grows unbounded

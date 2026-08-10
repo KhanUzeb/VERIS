@@ -129,6 +129,16 @@ def _run_one_case(
             error=f"target raised: {e}",
         )
     latency_ms = (time.perf_counter() - start) * 1000
+    # Contract is Callable[[str], str]; non-strings blow up judge/cache in
+    # opaque ways, so fail the case with a clear error instead.
+    if not isinstance(actual_output, str):
+        return CaseResult(
+            case_id=case.id, input=case.input, actual_output=repr(actual_output),
+            scores={}, latency_ms=latency_ms, passed_min_score=False,
+            error=(
+                f"target returned {type(actual_output).__name__}, expected str"
+            ),
+        )
 
     if repeat <= 1:
         scores = _score_case(case, actual_output, cache, judge_name, breaker)

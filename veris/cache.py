@@ -74,14 +74,40 @@ class ScoreCache:
                 (key,),
             )
             self.conn.commit()
-        return json.loads(row[0])
+        try:
+            raw = json.loads(row[0])
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(raw, dict):
+            return None
+        # Refuse to reuse corrupt / non-finite cached values (NaN would
+        # otherwise green-pass floor checks via IEEE comparison quirks).
+        clean: dict[str, float] = {}
+        for name, score in raw.items():
+            if isinstance(score, bool) or not isinstance(score, (int, float)):
+                return None
+            value = float(score)
+            if value != value or value in (float("inf"), float("-inf")):  # NaN/Inf
+                return None
+            clean[str(name)] = value
+        return clean
 
     def set(self, key: str, scores: dict[str, float]) -> None:
+        clean: dict[str, float] = {}
+        for name, score in scores.items():
+            if isinstance(score, bool) or not isinstance(score, (int, float)):
+                return
+            value = float(score)
+            if value != value or value in (float("inf"), float("-inf")):
+                return
+            clean[str(name)] = value
+        if not clean:
+            return
         with self._lock:
             self.conn.execute(
                 """INSERT OR REPLACE INTO score_cache (cache_key, scores_json, created_at, hit_count)
                    VALUES (?, ?, ?, COALESCE((SELECT hit_count FROM score_cache WHERE cache_key = ?), 0))""",
-                (key, json.dumps(scores), time.time(), key),
+                (key, json.dumps(clean), time.time(), key),
             )
             self.conn.commit()
 

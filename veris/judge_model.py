@@ -19,15 +19,21 @@ require deepeval to be installed just to import the package.
 from __future__ import annotations
 
 import threading
+import time
 
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import (
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from .config import SETTINGS
 
 # Caps concurrent judge-model calls across ALL GroqEvalModel instances,
 # independent of the case-level thread pool. Without this, N worker
 # threads × ~5 metrics/case can spike well past provider rate limits.
-_JUDGE_CONCURRENCY = threading.Semaphore(6)
+_JUDGE_CONCURRENCY = threading.Semaphore(SETTINGS.judge_concurrency)
 
 # Process-wide running totals — read via `usage_totals()` for cost reporting.
 _usage_lock = threading.Lock()
@@ -37,6 +43,10 @@ _usage_totals: dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0, "ca
 # to flag "this run cost noticeably more than usual" in reports.
 _COST_PER_M_INPUT = 0.05
 _COST_PER_M_OUTPUT = 0.08
+
+# Judge replies are short structured scores — unbounded max_tokens made
+# OpenRouter reserve up to 65k tokens and fail free-tier credit checks.
+_JUDGE_MAX_TOKENS = 1024
 
 
 def usage_totals() -> dict:
@@ -62,6 +72,27 @@ def _record_usage(usage) -> None:
         _usage_totals["prompt_tokens"] += getattr(usage, "prompt_tokens", 0) or 0
         _usage_totals["completion_tokens"] += getattr(usage, "completion_tokens", 0) or 0
         _usage_totals["calls"] += 1
+
+
+def _is_rate_limited(err: BaseException) -> bool:
+    text = str(err).lower()
+    if "429" in text or "rate_limit" in text or "rate limit" in text:
+        return True
+    status = getattr(err, "status_code", None) or getattr(err, "code", None)
+    if status == 429:
+        return True
+    body = getattr(err, "body", None)
+    if isinstance(body, dict) and body.get("error", {}).get("code") == "rate_limit_exceeded":
+        return True
+    return False
+
+
+def _is_retryable_primary(err: BaseException) -> bool:
+    """Retry primary on rate limits / transient blips before spending fallback budget."""
+    if _is_rate_limited(err):
+        return True
+    text = str(err).lower()
+    return any(tok in text for tok in ("timeout", "temporarily", "503", "502", "overloaded"))
 
 
 def _deepeval_base() -> type:
@@ -114,14 +145,28 @@ class GroqEvalModel(_deepeval_base()):
             )
         return self._or_client
 
+    @staticmethod
+    def _message_text(resp) -> str:
+        """Providers occasionally return empty choices / null content.
+        Treat that as a hard failure so the circuit breaker can trip instead
+        of feeding None into DeepEval metrics."""
+        choices = getattr(resp, "choices", None) or []
+        if not choices:
+            raise RuntimeError("judge provider returned no choices")
+        content = getattr(choices[0].message, "content", None)
+        if not isinstance(content, str) or not content.strip():
+            raise RuntimeError("judge provider returned empty message content")
+        return content
+
     def _call_groq(self, prompt: str) -> str:
         resp = self._groq().chat.completions.create(
             model=self.model_name,
             messages=[{"role": "user", "content": prompt}],
             temperature=0,
+            max_tokens=_JUDGE_MAX_TOKENS,
         )
         _record_usage(getattr(resp, "usage", None))
-        return resp.choices[0].message.content
+        return self._message_text(resp)
 
     def _call_openrouter(self, prompt: str) -> str:
         resp = self._openrouter().chat.completions.create(
@@ -135,13 +180,43 @@ class GroqEvalModel(_deepeval_base()):
             ),
             messages=[{"role": "user", "content": prompt}],
             temperature=0,
+            max_tokens=_JUDGE_MAX_TOKENS,
         )
         _record_usage(getattr(resp, "usage", None))
-        return resp.choices[0].message.content
+        return self._message_text(resp)
+
+    def _call_primary_with_backoff(self, primary, prompt: str):
+        """Retry rate-limited primary calls in-process before fallback.
+
+        Falling through to OpenRouter on every Groq 429 burns a dead credit
+        balance and hides the real fix (wait / lower concurrency / smaller model).
+        """
+        attempts = 5
+        delay = 2.0
+        last_err: BaseException | None = None
+        for i in range(attempts):
+            try:
+                return primary(prompt)
+            except Exception as err:
+                last_err = err
+                if not _is_retryable_primary(err) or i == attempts - 1:
+                    raise
+                # Cap wait so a stuck provider doesn't hang a CI job forever.
+                sleep_for = min(delay, 20.0)
+                print(
+                    f"[judge] rate-limited/transient error; "
+                    f"retrying primary in {sleep_for:.1f}s "
+                    f"({i + 1}/{attempts}): {err}"
+                )
+                time.sleep(sleep_for)
+                delay *= 1.8
+        assert last_err is not None
+        raise last_err
 
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=1, max=8),
+        retry=retry_if_exception(_is_rate_limited),
+        stop=stop_after_attempt(2),
+        wait=wait_exponential(multiplier=2, min=2, max=16),
         reraise=True,
     )
     def generate(self, prompt: str) -> str:
@@ -152,12 +227,21 @@ class GroqEvalModel(_deepeval_base()):
                 SETTINGS.openrouter_api_key if self.provider == "groq" else SETTINGS.groq_api_key
             )
             try:
-                return primary(prompt)
+                return self._call_primary_with_backoff(primary, prompt)
             except Exception as primary_err:
                 if not fallback_key:
                     raise RuntimeError(
                         f"primary judge provider '{self.provider}' failed and no "
                         f"fallback API key is configured: {primary_err}"
+                    ) from primary_err
+                # Skip fallback when the primary error is purely rate-limit —
+                # fallback usually won't help free-tier TPM, and a broke
+                # OpenRouter key just adds noisy 402s.
+                if _is_rate_limited(primary_err):
+                    raise RuntimeError(
+                        f"primary judge '{self.provider}' rate-limited after retries: "
+                        f"{primary_err}. Lower EVAL_MAX_WORKERS / EVAL_JUDGE_CONCURRENCY, "
+                        f"switch EVAL_JUDGE_MODEL to llama-3.3-70b-versatile, or wait a minute."
                     ) from primary_err
                 try:
                     return fallback(prompt)
