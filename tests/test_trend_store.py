@@ -58,10 +58,12 @@ def test_get_case_scores_returns_nested_dict(tmp_path):
 
 def test_orphan_case_scores_rejected_with_foreign_keys(tmp_path):
     """Foreign keys prevent dangling case_scores that would never join."""
+    import sqlite3
+
     import pytest
 
     store = TrendStore(db_path=tmp_path / "orphan.db")
-    with pytest.raises(Exception):
+    with pytest.raises(sqlite3.IntegrityError):
         store.save_case_score("orphan-run", "c1", "faithfulness", 0.9, True)
     store.close()
 

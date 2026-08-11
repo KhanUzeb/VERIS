@@ -104,7 +104,7 @@ def _deepeval_base() -> type:
         return object
 
 
-class GroqEvalModel(_deepeval_base()):
+class GroqEvalModel(_deepeval_base()):  # type: ignore[misc]
     """DeepEval-compatible judge model with configurable primary provider
     and keyed OpenRouter/Groq fallback."""
 
