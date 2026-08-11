@@ -1,9 +1,13 @@
 __pycache__/
 *.pyc
 .env
+.env.*
+!.env.example
 veris_trends.db
 eval_harness_trends.db
 *_cache.db
+*.db-wal
+*.db-shm
 veris_report.json
 veris_report.html
 veris_report.csv
@@ -18,8 +22,4 @@ htmlcov/
 .ruff_cache/
 dist/
 build/
-veris_trends_cache.db-shm
-.gitignore
-veris_trends.db-wal
-veris_trends.db-shm
-veris_trends_cache.db-wal
+.deepeval/

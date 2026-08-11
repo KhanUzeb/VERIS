@@ -27,6 +27,7 @@ the durable record of *what* broke and *why* the change exists.
 |-------|------|-----|
 | Target returned non-`str` | Opaque DeepEval / cache failures | Case marked `ERROR` with a clear message |
 | Judge empty / null `message.content` | Downstream metric crashes | Treated as provider failure (retry / circuit breaker) |
+| Groq TPD (daily) quota + short backoff | Run hung retrying for ~20s then aborted; fallback never used | Parse provider "try again in …" for TPM; on tokens-per-day exhaustion skip primary retries and use configured OpenRouter/Groq fallback |
 | Corrupt NaN entries in score cache | Replayed into the gate | Cache `get`/`set` refuse non-finite values |
 | `VERIS_MAX_RUN_COST_USD` garbage | Import-time `float()` crash | Validated in `Settings.__post_init__` with a clear error |
 | `--tags ,,,` / empty tags | Filtered to nothing / surprising empty runs | Reject empty tag lists |

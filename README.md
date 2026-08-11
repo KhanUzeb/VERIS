@@ -103,9 +103,10 @@ blocking vs advisory metrics are config-driven.
 
 | Env var | Purpose |
 |---------|---------|
-| `GROQ_API_KEY` | Primary judge when `EVAL_JUDGE_PROVIDER=groq` |
-| `OPENROUTER_API_KEY` | Fallback (or primary if provider=`openrouter`) |
-| `EVAL_JUDGE_MODEL` | Model id (default `llama-3.3-70b-versatile`) |
+| `GROQ_API_KEY` | Judge credential (primary or fallback) |
+| `OPENROUTER_API_KEY` | Judge credential (primary or fallback); set both keys for automatic failover |
+| `EVAL_JUDGE_MODEL` | Groq model id (default `llama-3.3-70b-versatile`) |
+| `EVAL_OPENROUTER_MODEL` | OpenRouter model id (default `openrouter/free` free router) |
 | `EVAL_JUDGE_PROVIDER` | `groq` (default) or `openrouter` |
 | `GOLDEN_DATASET_DIR` | YAML cases directory (default `./golden_dataset`) |
 | `TREND_DB_PATH` | SQLite trend store (default `./veris_trends.db`) |
@@ -196,7 +197,9 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| Mass failures / empty scores | Missing or invalid API key | Set `GROQ_API_KEY`; circuit breaker aborts after consecutive judge failures |
+| Mass failures / empty scores | Missing or invalid API key | Set `GROQ_API_KEY` (and optionally `OPENROUTER_API_KEY` for failover); circuit breaker aborts after consecutive judge failures |
+| Daily quota / TPD mid-run | Primary provider out of daily tokens | Set the other provider’s key; Veris falls back on TPD (not short TPM) |
+| OpenRouter `402` / “can only afford” | Credit balance cannot reserve `max_tokens` | Keep judge `max_tokens` low (built-in 256) or add OpenRouter credits |
 | `invalid score` in case detail | Judge returned NaN/None/Inf | Fail the case (not green-pass); check provider / clear cache |
 | Target ERROR `expected str` | Callable returned a non-string | Return a string from your target |
 | Cases fail with “metric missing” | Metric should apply but suite errored | Check warnings in the log; try `--no-cache` |

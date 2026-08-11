@@ -85,10 +85,16 @@ class Settings:
     # --- Providers ---
     groq_api_key: str = os.getenv("GROQ_API_KEY", "")
     openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
+    # Groq model id (primary when EVAL_JUDGE_PROVIDER=groq).
     judge_model: str = os.getenv("EVAL_JUDGE_MODEL", "llama-3.3-70b-versatile")
-    # "groq" (default) | "openrouter" — primary provider; the other is used
-    # as fallback when its API key is also configured.
+    # OpenRouter model id — default is the free-models router.
+    openrouter_model: str = os.getenv("EVAL_OPENROUTER_MODEL", "openrouter/free")
+    # "groq" (default) | "openrouter" — primary; the other is fallback when keyed.
     judge_provider: str = os.getenv("EVAL_JUDGE_PROVIDER", "groq")
+    # Cross-provider failover (sends prompts to the other provider). Default on.
+    judge_failover: bool = os.getenv("EVAL_JUDGE_FAILOVER", "1").strip().lower() in {
+        "1", "true", "yes", "on",
+    }
 
     # --- Storage ---
     trend_db_path: Path = Path(os.getenv("TREND_DB_PATH", "./veris_trends.db"))
