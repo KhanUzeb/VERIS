@@ -1,7 +1,15 @@
 # Veris
 
+> Local, agent-agnostic LLM evaluation and regression testing gate for AI
+> agents, RAG pipelines, and callables.
+
+![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)
+[![Docs](https://img.shields.io/badge/docs-user%20guide-informational)](docs/USER_GUIDE.md)
+
 **Veris** is an agent-agnostic, local LLM evaluation and regression testing
-gate. It runs golden datasets against your callable, scores outputs with
+gate. It runs golden datasets against any callable, scores outputs with
 DeepEval, compares them with rolling SQLite baselines, and returns reliable
 CI-ready pass/fail exit codes.
 
@@ -14,30 +22,37 @@ Veris is a **gate**, not a dashboard. It answers three questions:
 2. Is this a real regression or judge-model noise?
 3. What is the trend over recent runs?
 
-## Architecture
+## Features
 
-```
-golden_dataset/*.yaml          # cases: input, expected_output, context, tags
-        │
-        ▼
-veris.runner                   # invoke target, collect actual_output
-        │
-        ├──► metrics.deepeval  (faithfulness, relevancy, hallucination, toxicity)
-        │
-        ▼
-veris.trend_store              # SQLite history keyed by git sha + timestamp
-        │
-        ▼
-veris.regression_gate          # absolute floors + rolling median/stdev band
-veris.report                   # Rich terminal + JSON / HTML / CSV
-        │
-        ▼
-   exit 0 / 1  ──► pass / fail (local)
-```
+- **Agent-agnostic** — bring any `Callable[[str], str]` (LangGraph, FastAPI
+  clients, local agents, RAG pipelines, plain functions).
+- **LLM-as-judge scoring** — DeepEval metrics: faithfulness, answer relevancy,
+  hallucination, toxicity.
+- **Regression detection** — absolute floors plus a rolling median / standard
+  deviation band over recent **green** runs.
+- **Noise-aware** — judge-model noise is separated from real regressions via
+  configurable bands and optional flakiness audits (`--repeat N`).
+- **Local-first** — SQLite trend store, content-addressed score cache, no cloud
+  dependency. CI-ready exit codes (`0` / `1` / `2`).
+- **Free-tier friendly** — Groq + OpenRouter judges with automatic failover
+  and a circuit breaker that stops a broken run fast instead of burning budget.
 
-More detail: [the architecture](docs/ARCHITECTURE.md),
-[hardening notes](docs/HARDENING.md), and the
-[complete user guide](docs/USER_GUIDE.md).
+## Table of contents
+
+- [Quickstart](#quickstart)
+- [How it works](#how-it-works)
+- [CLI reference](#cli-reference)
+- [Your target contract](#your-target-contract)
+- [Configuration](#configuration)
+- [Golden dataset](#golden-dataset)
+- [What "blocking" means](#what-blocking-means)
+- [Reports](#reports)
+- [Continuous integration](#continuous-integration)
+- [Docker](#docker)
+- [Documentation](#documentation)
+- [Development](#development)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
 
 ## Quickstart
 
@@ -61,6 +76,31 @@ veris run --target your_agent_module:your_callable
 
 Your target must be a callable accepting the case input string and returning
 the target output string. Veris does not ship an agent implementation.
+
+## How it works
+
+```
+golden_dataset/*.yaml          # cases: input, expected_output, context, tags
+        │
+        ▼
+veris.runner                   # invoke target, collect actual_output
+        │
+        ├──► metrics.deepeval  (faithfulness, relevancy, hallucination, toxicity)
+        │
+        ▼
+veris.trend_store              # SQLite history keyed by git sha + timestamp
+        │
+        ▼
+veris.regression_gate          # absolute floors + rolling median/stdev band
+veris.report                   # Rich terminal + JSON / HTML / CSV
+        │
+        ▼
+   exit 0 / 1  ──► pass / fail (local)
+```
+
+Full details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),
+[docs/HARDENING.md](docs/HARDENING.md), and
+[docs/USER_GUIDE.md](docs/USER_GUIDE.md).
 
 ## CLI reference
 
@@ -113,15 +153,6 @@ blocking vs advisory metrics are config-driven.
 
 See [`.env.example`](.env.example).
 
-## Metric applicability
-
-Not every metric applies to every case. Metrics that need retrieval context
-(`faithfulness`, `hallucination`) are
-**N/A** — not blocking failures — when `retrieval_context` is empty.
-
-Context-free cases (safety / tone / clarification) are gated on
-`answer_relevancy` and `toxicity` only.
-
 ## Golden dataset
 
 Cases live under [`golden_dataset/`](golden_dataset/), split by focus:
@@ -151,16 +182,35 @@ cases:
     tags: [retrieval, billing]
 ```
 
-## What “blocking” means
+### Metric applicability
+
+Not every metric applies to every case. Metrics that need retrieval context
+(`faithfulness`, `hallucination`) are **N/A** — not blocking failures — when
+`retrieval_context` is empty.
+
+Context-free cases (safety / tone / clarification) are gated on
+`answer_relevancy` and `toxicity` only.
+
+## What "blocking" means
 
 A metric blocks the run when either:
 
 1. **Absolute floor** — score &lt; `MetricSpec.min_score`, or
 2. **Regression** — score more than `regression_stdev_band` standard deviations
-   below that case’s rolling median from the last `baseline_window` **green**
+   below that case's rolling median from the last `baseline_window` **green**
    runs (only after `min_baseline_samples` exist).
 
 Advisory metrics are recorded and shown but do not flip the exit code.
+
+## Reports
+
+- **Terminal (Rich)** — case status, score summary, latency, blocking details.
+- **JSON** — machine-readable full `RunReport`.
+- **HTML** — shareable report with recent composite trend.
+- **CSV** — one row per case/metric for spreadsheets and further analysis.
+
+Reports are artifacts, not the source of truth. The exit code and SQLite run
+record are authoritative.
 
 ## Continuous integration
 
@@ -173,7 +223,8 @@ make TARGET=your_agent_module:your_callable dry-run
 make TARGET=your_agent_module:your_callable run
 ```
 
-Projects embedding Veris may add their own CI workflow around the CLI.
+Projects embedding Veris may add their own CI workflow around the CLI — the
+stable `0` / `1` exit code is designed for exactly that.
 
 ## Docker
 
@@ -182,6 +233,15 @@ docker build -t veris .
 docker run --rm -e GROQ_API_KEY -v veris-data:/app/data veris \
   run --target your_agent_module:your_callable
 ```
+
+## Documentation
+
+| Document | What it covers |
+|----------|----------------|
+| [docs/USER_GUIDE.md](docs/USER_GUIDE.md) | Install, target contract, dataset format, metrics, baselines, exit codes, troubleshooting |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Pipeline, package layout, gate semantics, resilience, persistence |
+| [docs/HARDENING.md](docs/HARDENING.md) | Logic-hole review notes and mitigations |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Setup, checks, guidelines, adding cases/metrics, releases |
 
 ## Development
 
@@ -198,15 +258,15 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
 | Mass failures / empty scores | Missing or invalid API key | Set `GROQ_API_KEY` (and optionally `OPENROUTER_API_KEY` for failover); circuit breaker aborts after consecutive judge failures |
-| Daily quota / TPD mid-run | Primary provider out of daily tokens | Set the other provider’s key; Veris falls back on TPD (not short TPM) |
-| OpenRouter `402` / “can only afford” | Credit balance cannot reserve `max_tokens` | Keep judge `max_tokens` low (built-in 256) or add OpenRouter credits |
+| Daily quota / TPD mid-run | Primary provider out of daily tokens | Set the other provider's key; Veris falls back on TPD (not short TPM) |
+| OpenRouter `402` / "can only afford" | Credit balance cannot reserve `max_tokens` | Keep judge `max_tokens` low (built-in 256) or add OpenRouter credits |
 | `invalid score` in case detail | Judge returned NaN/None/Inf | Fail the case (not green-pass); check provider / clear cache |
 | Target ERROR `expected str` | Callable returned a non-string | Return a string from your target |
-| Cases fail with “metric missing” | Metric should apply but suite errored | Check warnings in the log; try `--no-cache` |
+| Cases fail with "metric missing" | Metric should apply but suite errored | Check warnings in the log; try `--no-cache` |
 | Safety/tone cases fail on hallucination | Old config without applicability | Upgrade; those metrics are N/A without context |
 | No regression sensitivity | Fewer than `min_baseline_samples` green runs | `make seed` |
 | Stale scores after config change | Cache still hot | `veris cache-clear` (config fingerprint also invalidates automatically) |
 
 ## License
 
-See repository license file if present; otherwise all rights reserved by the authors.
+MIT — see [LICENSE](LICENSE).

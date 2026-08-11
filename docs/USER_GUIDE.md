@@ -12,6 +12,23 @@ You provide:
 Veris provides the repeatable execution, DeepEval scoring, cache, SQLite
 baseline, regression decision, reports, and process exit code.
 
+## Contents
+
+- [What happens during a run](#what-happens-during-a-run)
+- [Install](#install)
+- [The target contract](#the-target-contract)
+- [First checks](#first-checks)
+- [Golden dataset format](#golden-dataset-format)
+- [Metrics and gate policy](#metrics-and-gate-policy)
+- [Establishing a baseline](#establishing-a-baseline)
+- [Normal runs and exit codes](#normal-runs-and-exit-codes)
+- [Cache and persistence](#cache-and-persistence)
+- [Reports](#reports)
+- [Configuration reference](#configuration-reference)
+- [Continuous integration](#continuous-integration)
+- [Repository map](#repository-map)
+- [Troubleshooting](#troubleshooting)
+
 ## What happens during a run
 
 ```text

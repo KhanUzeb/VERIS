@@ -1,8 +1,10 @@
-# Hardening notes
+# Veris Hardening Notes
 
 Review pass against logic holes that could make the gate green-pass,
 corrupt baselines, or fail opaquely. Fixes landed in code; this doc is
 the durable record of *what* broke and *why* the change exists.
+
+Part of the [Veris documentation](../README.md#documentation).
 
 ## Gate holes
 

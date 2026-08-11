@@ -1,5 +1,9 @@
 # Contributing to Veris
 
+Thanks for helping improve Veris — the local, agent-agnostic LLM evaluation
+and regression testing gate. Start with the [README](../README.md) for the
+big picture.
+
 ## Setup
 
 ```bash

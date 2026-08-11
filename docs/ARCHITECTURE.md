@@ -1,10 +1,12 @@
-# Architecture
+# Veris Architecture
 
-Veris is a **local regression gate**: golden cases → target execution
-→ LLM-as-judge scoring → baseline comparison → pass/fail exit code.
+Veris is a **local regression gate** for LLM and agent evaluation: golden
+cases → target execution → LLM-as-judge scoring → baseline comparison →
+pass/fail exit code.
 
 For installation, target integration, dataset authoring, commands, and
-troubleshooting, see [the user guide](USER_GUIDE.md).
+troubleshooting, see [the user guide](USER_GUIDE.md). For an overview, start
+at the [README](../README.md).
 
 ## Pipeline
 
