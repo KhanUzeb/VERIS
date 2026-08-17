@@ -16,11 +16,15 @@ typecheck:
 	mypy veris/ --ignore-missing-imports
 
 run:
-	@test -n "$(TARGET)" || (echo "set TARGET=module:function" && exit 2)
+ifndef TARGET
+	$(error set TARGET=module:function)
+endif
 	python -m veris.cli run --target "$(TARGET)"
 
 dry-run:
-	@test -n "$(TARGET)" || (echo "set TARGET=module:function" && exit 2)
+ifndef TARGET
+	$(error set TARGET=module:function)
+endif
 	python -m veris.cli run --target "$(TARGET)" --dry-run
 
 list-cases:
@@ -42,7 +46,9 @@ baseline:
 	python -m veris.cli baseline
 
 seed:
-	@test -n "$(TARGET)" || (echo "set TARGET=module:function" && exit 2)
+ifndef TARGET
+	$(error set TARGET=module:function)
+endif
 	python scripts/seed_baseline.py --target "$(TARGET)" --n 3
 
 prune:

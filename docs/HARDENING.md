@@ -31,10 +31,13 @@ Part of the [Veris documentation](../README.md#documentation).
 | Judge empty / null `message.content` | Downstream metric crashes | Treated as provider failure (retry / circuit breaker) |
 | Groq TPD (daily) quota + short backoff | Run hung retrying for ~20s then aborted; fallback never used | Parse provider "try again in …" for TPM; on tokens-per-day exhaustion skip primary retries and use configured OpenRouter/Groq fallback |
 | Corrupt NaN entries in score cache | Replayed into the gate | Cache `get`/`set` refuse non-finite values |
-| `VERIS_MAX_RUN_COST_USD` garbage | Import-time `float()` crash | Validated in `Settings.__post_init__` with a clear error |
+| `VERIS_MAX_RUN_COST_USD` garbage | Import-time `float()` crash | Validated by `_parse_max_run_cost_usd()` at import (not `__post_init__`, so `dataclasses.replace` in tests is not overwritten) |
 | `--tags ,,,` / empty tags | Filtered to nothing / surprising empty runs | Reject empty tag lists |
 | HTML report ignored `cr.error` | Showed `FAIL` instead of `ERROR` | Shared `_case_status()` for terminal/CSV/HTML |
 | Seed script bad `--target` | Raw `AttributeError` | Same validation as CLI |
+| `dependencies` nested under `[project.urls]` | `pip install -e .` installed the package with **no** runtime deps | `dependencies` lives under `[project]` |
+| One DeepEval metric raising | Entire case score dict discarded; circuit breaker could trip on a single flaky metric | Each metric is isolated; empty suite still counts as a judge failure |
+| Circuit-breaker abort skipped CLI reports | SQLite had the partial run, but JSON/HTML were never written | `RunAborted` carries the report; CLI/seed still emit artifacts then fail |
 
 ## What was already solid
 

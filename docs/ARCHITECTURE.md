@@ -65,7 +65,7 @@ Metrics with `requires_retrieval_context` / `requires_expected_output` that the 
 
 ## Resilience
 
-- **Circuit breaker** — consecutive judge failures abort the run (bad key / outage) instead of mass false regressions; cooperative cancel stops further judge work.
+- **Circuit breaker** — consecutive judge failures abort the run (bad key / outage) instead of mass false regressions; cooperative cancel stops further judge work. The CLI still writes JSON/HTML for the partial run.
 - **Score cache** — skips judge calls when inputs + metric config fingerprint are unchanged; refuses non-finite cached values.
 - **Incremental DB writes** — completed cases survive mid-run crashes; `(run, case, metric)` rows upsert under a unique index.
 - **Canonical timestamps** — trend-store rows always use UTC ISO-8601 so `ORDER BY` / prune stay consistent.

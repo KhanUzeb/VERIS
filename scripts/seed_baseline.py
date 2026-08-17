@@ -18,7 +18,7 @@ if _cwd not in sys.path:
     sys.path.insert(0, _cwd)
 
 from veris.report import print_report  # noqa: E402
-from veris.runner import run_gate  # noqa: E402
+from veris.runner import RunAborted, run_gate  # noqa: E402
 
 
 def resolve(dotted):
@@ -43,7 +43,16 @@ if __name__ == "__main__":
     target_fn = resolve(args.target)
     for i in range(args.n):
         print(f"\n=== Veris seed run {i + 1}/{args.n} ===")
-        report = run_gate(target_fn)
+        try:
+            report = run_gate(target_fn)
+        except RunAborted as e:
+            print_report(e.report)
+            print(
+                f"seed run {i + 1} aborted — {e}. Refusing to treat "
+                "a partial run as baseline.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
         print_report(report)
         if not report.passed:
             print(

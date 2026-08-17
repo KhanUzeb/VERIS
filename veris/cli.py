@@ -14,7 +14,7 @@ from .cache import ScoreCache
 from .config import SETTINGS
 from .judge_model import usage_totals
 from .report import print_report, write_csv_report, write_html_report, write_json_report
-from .runner import run_gate
+from .runner import RunAborted, run_gate
 from .trend_store import TrendStore
 
 console = Console()
@@ -68,6 +68,27 @@ def cli():
     """
 
 
+def _write_run_artifacts(report, json_out, html_out, csv_out) -> None:
+    print_report(report)
+    write_json_report(report, json_out)
+    hist_store = TrendStore()
+    history = hist_store.recent_runs(limit=20)
+    hist_store.close()
+    write_html_report(report, html_out, trend_history=history)
+    written = [json_out, html_out]
+    if csv_out:
+        write_csv_report(report, csv_out)
+        written.append(csv_out)
+    click.echo(f"\nreports written: {', '.join(written)}")
+
+    totals = usage_totals()
+    if totals["calls"]:
+        click.echo(
+            f"judge usage: {totals['calls']} calls, {totals['prompt_tokens']}+"
+            f"{totals['completion_tokens']} tokens, ~${totals['estimated_cost_usd']}"
+        )
+
+
 @cli.command()
 @click.option("--target", required=True, metavar="MODULE:FUNCTION",
               help="your callable, e.g. my_agent:answer")
@@ -104,33 +125,21 @@ def run(target, tags, json_out, html_out, csv_out, no_cache, repeat, fail_fast, 
         return
 
     target_fn = _resolve_target(target)
+    abort_message = None
     try:
         report = run_gate(
             target_fn, tags=tag_list, git_sha=_git_sha(),
             use_cache=not no_cache, repeat=repeat, fail_fast=fail_fast,
         )
+    except RunAborted as e:
+        report = e.report
+        abort_message = str(e)
     except (FileNotFoundError, ValueError, RuntimeError) as e:
         raise click.ClickException(str(e)) from e
 
-    print_report(report)
-    write_json_report(report, json_out)
-    hist_store = TrendStore()
-    history = hist_store.recent_runs(limit=20)
-    hist_store.close()
-    write_html_report(report, html_out, trend_history=history)
-    written = [json_out, html_out]
-    if csv_out:
-        write_csv_report(report, csv_out)
-        written.append(csv_out)
-    click.echo(f"\nreports written: {', '.join(written)}")
-
-    totals = usage_totals()
-    if totals["calls"]:
-        click.echo(
-            f"judge usage: {totals['calls']} calls, {totals['prompt_tokens']}+"
-            f"{totals['completion_tokens']} tokens, ~${totals['estimated_cost_usd']}"
-        )
-
+    _write_run_artifacts(report, json_out, html_out, csv_out)
+    if abort_message:
+        raise click.ClickException(abort_message)
     sys.exit(0 if report.passed else 1)
 
 

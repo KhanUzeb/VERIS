@@ -6,6 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from click.testing import CliRunner
 
+from veris import __version__
 from veris.cli import cli
 from veris.config import SETTINGS
 from veris.schemas import CaseResult, GoldenCase, RunReport
@@ -41,7 +42,7 @@ def test_dry_run():
 def test_version_is_available():
     result = CliRunner().invoke(cli, ["--version"])
     assert result.exit_code == 0
-    assert "2.1.0" in result.output
+    assert __version__ in result.output
 
 
 def test_invalid_target_has_actionable_error():
@@ -214,3 +215,37 @@ def test_run_fail_fast_forwards_flag_and_reports_partial_run(monkeypatch, tmp_pa
     assert result.exit_code == 1
     assert captured["fail_fast"] is True
     assert len(report.case_results) < report.total_cases
+
+
+def test_run_abort_still_writes_reports(monkeypatch, tmp_path):
+    from veris.runner import RunAborted
+
+    report = RunReport(
+        run_id="aborted", total_cases=8, failed_cases=2, passed=False,
+        case_results=[CaseResult(
+            case_id="first", input="q", actual_output="a", scores={},
+            latency_ms=1.0, passed_min_score=False,
+            regression_detail="no scores produced",
+        )],
+    )
+
+    def fake_run_gate(*_args, **_kwargs):
+        raise RunAborted("circuit breaker tripped: judge down", report)
+
+    json_out = tmp_path / "abort.json"
+    html_out = tmp_path / "abort.html"
+    monkeypatch.setattr("veris.cli._resolve_target", lambda _: lambda text: text)
+    monkeypatch.setattr("veris.cli.run_gate", fake_run_gate)
+    monkeypatch.setattr("veris.cli.TrendStore", lambda: type("Store", (), {
+        "recent_runs": lambda self, limit: [], "close": lambda self: None,
+    })())
+
+    result = CliRunner().invoke(cli, [
+        "run", "--target", "example:fn",
+        "--json-out", str(json_out), "--html-out", str(html_out),
+    ])
+    assert result.exit_code != 0
+    assert "circuit breaker tripped" in result.output
+    assert json_out.exists()
+    assert html_out.exists()
+    assert '"run_id": "aborted"' in json_out.read_text(encoding="utf-8")

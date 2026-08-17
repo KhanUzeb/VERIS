@@ -1,4 +1,4 @@
-deepeval>=2.0.0
+deepeval>=2.0.0,<5
 pydantic>=2.7.0
 pyyaml>=6.0
 rich>=13.7.0

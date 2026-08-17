@@ -18,6 +18,18 @@ from .trend_store import TrendStore
 TargetFn = Callable[[str], str]  # takes case.input, returns actual_output
 
 
+class RunAborted(RuntimeError):
+    """Raised after a circuit-breaker / fail-fast / cost-ceiling abort.
+
+    The partial `report` is attached so callers (CLI, seed script) can still
+    print and persist artifacts that `run_gate` already wrote to SQLite.
+    """
+
+    def __init__(self, message: str, report: RunReport):
+        super().__init__(message)
+        self.report = report
+
+
 def score_deepeval(case, actual_output: str) -> dict[str, float]:
     """Lazy wrapper — keeps deepeval off the import path for CLI/unit tests.
     Monkeypatchable as `runner.score_deepeval`."""
@@ -92,13 +104,14 @@ def _score_case(
             return cached
 
     scores: dict[str, float] = {}
-    any_success = False
     try:
         scores.update(score_deepeval(case, actual_output))
-        any_success = True
     except Exception as e:
         print(f"[warn] deepeval scoring failed for {case.id}: {e}")
 
+    # Empty scores (all metrics failed, or the suite raised) count as a
+    # judge failure so the circuit breaker can abort a dead provider.
+    any_success = bool(scores)
     if breaker.cancelled():
         breaker.record(success=any_success)
         raise RuntimeError("circuit breaker tripped")
@@ -266,5 +279,5 @@ def run_gate(
             store.close()
 
     if abort_error is not None:
-        raise abort_error
+        raise RunAborted(str(abort_error), report)
     return report

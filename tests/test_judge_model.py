@@ -168,6 +168,22 @@ def test_failover_disabled_does_not_call_fallback(monkeypatch):
     fallback.assert_not_called()
 
 
+def test_generate_accepts_deepeval_schema_kwarg(monkeypatch):
+    """DeepEval 4.x calls generate(prompt, schema=Model); that must not TypeError."""
+    from dataclasses import replace
+
+    from veris.judge_model import SETTINGS
+
+    monkeypatch.setattr(
+        "veris.judge_model.SETTINGS",
+        replace(SETTINGS, judge_failover=False, openrouter_api_key=""),
+    )
+    model = GroqEvalModel(model_name="test-model", provider="groq")
+    model.generate.retry.wait = wait_none()
+    with patch.object(model, "_call_groq", return_value='{"score": 1}'):
+        assert model.generate("hello", schema=object) == '{"score": 1}'
+
+
 def test_groq_call_sets_max_tokens():
     model = GroqEvalModel(model_name="llama-3.3-70b-versatile", provider="groq")
     response = MagicMock()

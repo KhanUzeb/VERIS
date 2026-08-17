@@ -52,8 +52,12 @@ def test_circuit_breaker_abort_persists_run_and_closes(tmp_path, monkeypatch):
 
     monkeypatch.setattr(runner, "score_deepeval", boom)
 
-    with pytest.raises(RuntimeError, match="circuit breaker tripped"):
+    with pytest.raises(RuntimeError, match="circuit breaker tripped") as exc:
         runner.run_gate(lambda text: f"out:{text}", use_cache=True)
+
+    assert isinstance(exc.value, runner.RunAborted)
+    assert exc.value.report.passed is False
+    assert exc.value.report.total_cases == 8
 
     store = TrendStore(db_path=db_path)
     runs = store.recent_runs(limit=5)
@@ -142,3 +146,21 @@ def test_target_non_string_return_is_case_error(tmp_path, monkeypatch):
     assert result.passed_min_score is False
     assert result.error and "expected str" in result.error
     store.close()
+
+
+def test_empty_scores_count_as_judge_failure(tmp_path, monkeypatch):
+    """A suite that returns {} (all metrics isolated-failed) must trip the breaker."""
+    db_path = tmp_path / "empty.db"
+    cases = [GoldenCase(id=f"c{i}", input=f"q{i}") for i in range(6)]
+    monkeypatch.setattr(runner, "load_golden_cases", lambda *a, **k: cases)
+    monkeypatch.setattr(
+        runner,
+        "SETTINGS",
+        replace(runner.SETTINGS, max_consecutive_judge_failures=2, max_workers=1),
+    )
+    monkeypatch.setattr(runner, "TrendStore", lambda *a, **k: TrendStore(db_path=db_path))
+    monkeypatch.setattr(runner, "GroqEvalModel", lambda: MagicMock(get_model_name=lambda: "test"))
+    monkeypatch.setattr(runner, "score_deepeval", lambda *_a, **_k: {})
+
+    with pytest.raises(RuntimeError, match="circuit breaker tripped"):
+        runner.run_gate(lambda text: text)

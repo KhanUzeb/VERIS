@@ -13,6 +13,7 @@ Short TPM rate limits retry on the primary only.
 """
 from __future__ import annotations
 
+import asyncio
 import re
 import threading
 import time
@@ -285,7 +286,11 @@ class GroqEvalModel(_deepeval_base()):  # type: ignore[misc]
         wait=wait_exponential(multiplier=2, min=2, max=16),
         reraise=True,
     )
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, schema=None, **_kwargs) -> str:
+        # DeepEval 4.x calls generate(prompt, schema=Model). We accept the
+        # extra kwargs so generate_with_schema does not TypeError-and-retry;
+        # returning JSON text is valid — DeepEval's trimAndLoadJson parses it.
+        del schema, _kwargs
         with _JUDGE_CONCURRENCY:
             primary, fallback, fallback_key, fallback_name = self._provider_pair()
             try:
@@ -329,8 +334,10 @@ class GroqEvalModel(_deepeval_base()):  # type: ignore[misc]
                         f"({_redact_secrets(str(fallback_err))})"
                     ) from fallback_err
 
-    async def a_generate(self, prompt: str) -> str:
-        return self.generate(prompt)
+    async def a_generate(self, prompt: str, schema=None, **_kwargs) -> str:
+        # Run the sync provider call in a worker thread so DeepEval's
+        # async_mode path does not block the event loop.
+        return await asyncio.to_thread(self.generate, prompt, schema)
 
     def get_model_name(self) -> str:
         """Identity used in reports + score-cache keys.

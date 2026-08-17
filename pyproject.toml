@@ -1,6 +1,6 @@
 [project]
 name = "veris"
-version = "2.1.0"
+version = "2.1.1"
 description = "Agent-agnostic local LLM evaluation and regression testing gate with DeepEval, golden datasets, SQLite baselines, and CI-ready exit codes."
 requires-python = ">=3.11"
 readme = "README.md"
@@ -37,13 +37,8 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
-[project.urls]
-Homepage = "https://github.com/KhanUzeb/VERIS"
-Repository = "https://github.com/KhanUzeb/VERIS"
-Documentation = "https://github.com/KhanUzeb/VERIS/blob/main/README.md"
-Issues = "https://github.com/KhanUzeb/VERIS/issues"
 dependencies = [
-    "deepeval>=2.0.0",
+    "deepeval>=2.0.0,<5",
     "pydantic>=2.7.0",
     "pyyaml>=6.0",
     "rich>=13.7.0",
@@ -53,6 +48,12 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "tenacity>=8.2.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/KhanUzeb/VERIS"
+Repository = "https://github.com/KhanUzeb/VERIS"
+Documentation = "https://github.com/KhanUzeb/VERIS/blob/main/README.md"
+Issues = "https://github.com/KhanUzeb/VERIS/issues"
 
 [project.optional-dependencies]
 dev = [

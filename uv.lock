@@ -2030,7 +2030,7 @@ wheels = [
 
 [[package]]
 name = "veris"
-version = "2.1.0"
+version = "2.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -2055,7 +2055,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.1.0" },
-    { name = "deepeval", specifier = ">=2.0.0" },
+    { name = "deepeval", specifier = ">=2.0.0,<5" },
     { name = "groq", specifier = ">=0.9.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10" },
     { name = "openai", specifier = ">=1.30.0" },
