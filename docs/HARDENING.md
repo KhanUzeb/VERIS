@@ -38,6 +38,7 @@ Part of the [Veris documentation](../README.md#documentation).
 | `dependencies` nested under `[project.urls]` | `pip install -e .` installed the package with **no** runtime deps | `dependencies` lives under `[project]` |
 | One DeepEval metric raising | Entire case score dict discarded; circuit breaker could trip on a single flaky metric | Each metric is isolated; empty suite still counts as a judge failure |
 | Circuit-breaker abort skipped CLI reports | SQLite had the partial run, but JSON/HTML were never written | `RunAborted` carries the report; CLI/seed still emit artifacts then fail |
+| Stacked retry layers on the judge | `@retry` decorator on `generate()` combined with the inner `_call_primary_with_backoff` loop → up to ~15 primary calls + 2 fallbacks per case/metric; made judge spend and attempt count unbounded and unpredictable (undermines `VERIS_MAX_RUN_COST_USD`) | Removed the tenacity decorator; all primary retry/backoff is now owned solely by `_call_primary_with_backoff` (5 attempts, exponential, honors "try again in …") — fallback still fires once on daily-quota / connection failure |
 
 ## What was already solid
 

@@ -3,7 +3,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from tenacity import wait_none
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -20,7 +19,6 @@ def test_judge_connection_error_is_not_wrapped_in_retry_error(monkeypatch):
         replace(SETTINGS, judge_failover=True, openrouter_api_key="test-or-key"),
     )
     model = GroqEvalModel(model_name="test-model", provider="groq")
-    model.generate.retry.wait = wait_none()
     with patch.object(model, "_call_groq", side_effect=RuntimeError("network blocked")), \
          patch.object(model, "_call_openrouter", side_effect=RuntimeError("fallback blocked")):
         with pytest.raises(RuntimeError, match="also failed") as exc:
@@ -71,7 +69,6 @@ def test_groq_primary_falls_back_to_openrouter_free_model(monkeypatch):
 
 def test_rate_limit_retries_primary_without_fallback():
     model = GroqEvalModel(model_name="test-model", provider="groq")
-    model.generate.retry.wait = wait_none()
     calls = {"n": 0}
 
     def flaky(_prompt):
@@ -114,7 +111,6 @@ def test_daily_quota_falls_back_without_primary_retries(monkeypatch):
     )
 
     model = GroqEvalModel(model_name="test-model", provider="groq")
-    model.generate.retry.wait = wait_none()
     primary_calls = {"n": 0}
 
     def tpd(_prompt):
@@ -159,7 +155,6 @@ def test_failover_disabled_does_not_call_fallback(monkeypatch):
         replace(SETTINGS, judge_failover=False, openrouter_api_key="test-or-key"),
     )
     model = GroqEvalModel(model_name="test-model", provider="groq")
-    model.generate.retry.wait = wait_none()
 
     with patch.object(model, "_call_groq", side_effect=RuntimeError("network blocked")), \
          patch.object(model, "_call_openrouter") as fallback:
@@ -179,7 +174,6 @@ def test_generate_accepts_deepeval_schema_kwarg(monkeypatch):
         replace(SETTINGS, judge_failover=False, openrouter_api_key=""),
     )
     model = GroqEvalModel(model_name="test-model", provider="groq")
-    model.generate.retry.wait = wait_none()
     with patch.object(model, "_call_groq", return_value='{"score": 1}'):
         assert model.generate("hello", schema=object) == '{"score": 1}'
 

@@ -105,7 +105,7 @@ def _write_run_artifacts(report, json_out, html_out, csv_out) -> None:
 def run(target, tags, json_out, html_out, csv_out, no_cache, repeat, fail_fast, dry_run):
     """Run the golden set against TARGET and gate on regressions."""
     tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else None
-    if tags is not None and tag_list is not None and not tag_list:
+    if tags is not None and not tag_list:
         raise click.BadParameter("tags must contain at least one non-empty tag", param_hint="--tags")
 
     if dry_run:
@@ -152,7 +152,7 @@ def list_cases(dataset_dir, tags):
 
     target_dir = dataset_dir or SETTINGS.golden_dataset_dir
     tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else None
-    if tags is not None and tag_list is not None and not tag_list:
+    if tags is not None and not tag_list:
         raise click.BadParameter("tags must contain at least one non-empty tag", param_hint="--tags")
     cases = load_golden_cases(target_dir, tags=tag_list)
 

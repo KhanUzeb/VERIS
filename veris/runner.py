@@ -238,9 +238,8 @@ def run_gate(
                         break
                     if (
                         SETTINGS.max_run_cost_usd is not None
-                        and usage_totals()["estimated_cost_usd"] > SETTINGS.max_run_cost_usd
+                        and (cost := usage_totals()["estimated_cost_usd"]) > SETTINGS.max_run_cost_usd
                     ):
-                        cost = usage_totals()["estimated_cost_usd"]
                         breaker.trip(
                             f"run cost ceiling exceeded: ${cost:.4f} > "
                             f"${SETTINGS.max_run_cost_usd:.4f}"

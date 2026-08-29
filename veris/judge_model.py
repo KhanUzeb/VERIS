@@ -19,13 +19,11 @@ import threading
 import time
 from collections.abc import Callable
 
-from tenacity import (
-    retry,
-    retry_if_exception,
-    stop_after_attempt,
-    wait_exponential,
-)
-
+# NOTE: no tenacity decorator here. All retry/backoff for the primary judge
+# is owned by `_call_primary_with_backoff` (5 attempts, exponential backoff).
+# A stacked @retry decorator would combine with that inner loop into an
+# unbounded number of provider calls and unpredictable spend — forbidden by
+# design in a tool that has a VERIS_MAX_RUN_COST_USD ceiling.
 from .config import SETTINGS
 
 _JUDGE_CONCURRENCY = threading.Semaphore(SETTINGS.judge_concurrency)
@@ -280,12 +278,6 @@ class GroqEvalModel(_deepeval_base()):  # type: ignore[misc]
         assert last_err is not None
         raise last_err
 
-    @retry(
-        retry=retry_if_exception(_is_rate_limited),
-        stop=stop_after_attempt(2),
-        wait=wait_exponential(multiplier=2, min=2, max=16),
-        reraise=True,
-    )
     def generate(self, prompt: str, schema=None, **_kwargs) -> str:
         # DeepEval 4.x calls generate(prompt, schema=Model). We accept the
         # extra kwargs so generate_with_schema does not TypeError-and-retry;
