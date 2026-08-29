@@ -24,18 +24,19 @@ Veris is a **gate**, not a dashboard. It answers three questions:
 
 ## Features
 
-- **Agent-agnostic** — bring any `Callable[[str], str]` (LangGraph, FastAPI
-  clients, local agents, RAG pipelines, plain functions).
-- **LLM-as-judge scoring** — DeepEval metrics: faithfulness, answer relevancy,
-  hallucination, toxicity.
-- **Regression detection** — absolute floors plus a rolling median / standard
-  deviation band over recent **green** runs.
-- **Noise-aware** — judge-model noise is separated from real regressions via
-  configurable bands and optional flakiness audits (`--repeat N`).
-- **Local-first** — SQLite trend store, content-addressed score cache, no cloud
-  dependency. CI-ready exit codes (`0` / `1` / `2`).
-- **Free-tier friendly** — Groq + OpenRouter judges with automatic failover
-  and a circuit breaker that stops a broken run fast instead of burning budget.
+- Works with any `Callable[[str], str]`: LangGraph, FastAPI clients, local
+  agents, RAG pipelines, or plain functions.
+- Scores with DeepEval metrics: faithfulness, answer relevancy, hallucination,
+  toxicity.
+- Detects regressions with absolute floors plus a rolling median and
+  standard-deviation band over recent green runs.
+- Separates judge-model noise from real regressions using configurable bands
+  and optional flakiness audits (`--repeat N`).
+- Runs locally: a SQLite trend store, a content-addressed score cache, and no
+  cloud dependency. Exit codes are CI-ready (`0` / `1` / `2`).
+- Plays well with free tiers: Groq and OpenRouter judges with automatic
+  failover and a circuit breaker that aborts a broken run instead of spending
+  on one it should stop.
 
 ## Table of contents
 
@@ -138,7 +139,7 @@ functions without coupling the harness to any of them.
 ## Configuration
 
 Thresholds and metric policy live in [`veris/config.py`](veris/config.py).
-Nothing gate-critical is hardcoded in the runner — weights, noise bands, and
+Nothing gate-critical is hardcoded in the runner. Weights, noise bands, and
 blocking vs advisory metrics are config-driven.
 
 | Env var | Purpose |
@@ -185,7 +186,7 @@ cases:
 ### Metric applicability
 
 Not every metric applies to every case. Metrics that need retrieval context
-(`faithfulness`, `hallucination`) are **N/A** — not blocking failures — when
+(`faithfulness`, `hallucination`) are **N/A**, not blocking failures, when
 `retrieval_context` is empty.
 
 Context-free cases (safety / tone / clarification) are gated on
@@ -195,8 +196,8 @@ Context-free cases (safety / tone / clarification) are gated on
 
 A metric blocks the run when either:
 
-1. **Absolute floor** — score &lt; `MetricSpec.min_score`, or
-2. **Regression** — score more than `regression_stdev_band` standard deviations
+1. **Absolute floor**: score &lt; `MetricSpec.min_score`, or
+2. **Regression**: score more than `regression_stdev_band` standard deviations
    below that case's rolling median from the last `baseline_window` **green**
    runs (only after `min_baseline_samples` exist).
 
@@ -204,10 +205,10 @@ Advisory metrics are recorded and shown but do not flip the exit code.
 
 ## Reports
 
-- **Terminal (Rich)** — case status, score summary, latency, blocking details.
-- **JSON** — machine-readable full `RunReport`.
-- **HTML** — shareable report with recent composite trend.
-- **CSV** — one row per case/metric for spreadsheets and further analysis.
+- **Terminal (Rich)**: case status, score summary, latency, and blocking details.
+- **JSON**: machine-readable full `RunReport`.
+- **HTML**: shareable report with recent composite trend.
+- **CSV**: one row per case/metric for spreadsheets and further analysis.
 
 Reports are artifacts, not the source of truth. The exit code and SQLite run
 record are authoritative.
@@ -223,7 +224,7 @@ make TARGET=your_agent_module:your_callable dry-run
 make TARGET=your_agent_module:your_callable run
 ```
 
-Projects embedding Veris may add their own CI workflow around the CLI — the
+Projects embedding Veris may add their own CI workflow around the CLI. The
 stable `0` / `1` exit code is designed for exactly that.
 
 ## Docker
@@ -269,4 +270,4 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

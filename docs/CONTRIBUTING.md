@@ -1,7 +1,7 @@
 # Contributing to Veris
 
-Thanks for helping improve Veris — the local, agent-agnostic LLM evaluation
-and regression testing gate. Start with the [README](../README.md) for the
+Thanks for helping improve Veris, the local, agent-agnostic LLM evaluation and
+regression testing gate. Start with the [README](../README.md) for the
 big picture.
 
 ## Setup
@@ -32,7 +32,7 @@ callable or a consuming project that supplies `--target module:function`.
 
 ## Guidelines
 
-- Keep gate thresholds in `veris/config.py` — do not hardcode floors in the runner.
+- Keep gate thresholds in `veris/config.py`. Do not hardcode floors in the runner.
 - Prefer tests that avoid live LLM calls (monkeypatch `runner.score_deepeval`).
 - Metric applicability belongs on `MetricSpec` (`requires_retrieval_context`, etc.).
 - User-facing product name is **Veris**; Python package / CLI is `veris`.
@@ -48,9 +48,9 @@ callable or a consuming project that supplies `--target module:function`.
 
 1. Implement scoring in `veris/metrics/`.
 2. Register a `MetricSpec` in `veris/config.py` (blocking, floor, weight, applicability).
-3. Cache keys include `metrics_fingerprint()` — no manual cache clear required after config changes, but `--no-cache` is fine while iterating.
+3. Cache keys include `metrics_fingerprint()`. No manual cache clear is required after config changes, but `--no-cache` is fine while iterating.
 4. Add a unit test for gate behavior (especially N/A / missing / floor).
 
 ## Releases
 
-Version is set in `veris/__init__.py` and `pyproject.toml` — keep them in sync.
+Version is set in `veris/__init__.py` and `pyproject.toml`. Keep them in sync.

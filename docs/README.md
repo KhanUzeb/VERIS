@@ -1,13 +1,13 @@
 # Veris Documentation
 
-> Everything you need to integrate, run, and extend **Veris** — the
-> agent-agnostic, local LLM evaluation and regression testing gate.
+> Everything you need to integrate, run, and extend **Veris**, the local,
+> agent-agnostic LLM evaluation and regression testing gate.
 
 ## Getting started
 
-- [User guide](USER_GUIDE.md) — install, target contract, dataset format,
+- [User guide](USER_GUIDE.md): install, target contract, dataset format,
   metrics, baselines, exit codes, and troubleshooting.
-- [README](../README.md) — feature overview, quickstart, CLI reference, and
+- [README](../README.md): feature overview, quickstart, CLI reference, and
   configuration table.
 
 ## Deep dives
@@ -20,8 +20,8 @@
 
 ## Quick links
 
-- Golden dataset format — [USER_GUIDE.md#golden-dataset-format](USER_GUIDE.md#golden-dataset-format)
-- Metrics and gate policy — [USER_GUIDE.md#metrics-and-gate-policy](USER_GUIDE.md#metrics-and-gate-policy)
-- Establishing a baseline — [USER_GUIDE.md#establishing-a-baseline](USER_GUIDE.md#establishing-a-baseline)
-- Normal runs and exit codes — [USER_GUIDE.md#normal-runs-and-exit-codes](USER_GUIDE.md#normal-runs-and-exit-codes)
-- Configuration reference — [USER_GUIDE.md#configuration-reference](USER_GUIDE.md#configuration-reference)
+- Golden dataset format: [USER_GUIDE.md#golden-dataset-format](USER_GUIDE.md#golden-dataset-format)
+- Metrics and gate policy: [USER_GUIDE.md#metrics-and-gate-policy](USER_GUIDE.md#metrics-and-gate-policy)
+- Establishing a baseline: [USER_GUIDE.md#establishing-a-baseline](USER_GUIDE.md#establishing-a-baseline)
+- Normal runs and exit codes: [USER_GUIDE.md#normal-runs-and-exit-codes](USER_GUIDE.md#normal-runs-and-exit-codes)
+- Configuration reference: [USER_GUIDE.md#configuration-reference](USER_GUIDE.md#configuration-reference)

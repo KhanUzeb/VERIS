@@ -81,14 +81,14 @@ Set **both** API keys so the primary can fail over to the other.
 | `EVAL_JUDGE_MODEL` | Groq model id (default `llama-3.3-70b-versatile`) |
 | `EVAL_OPENROUTER_MODEL` | OpenRouter model id (default `openrouter/free`) |
 
-`openrouter/free` is OpenRouter’s [Free Models Router](https://openrouter.ai/docs/guides/routing/routers/free-router) — it auto-picks an available free model. Pin a free variant with a `:free` suffix if you prefer (e.g. `meta-llama/llama-3.3-70b-instruct:free`).
+`openrouter/free` is OpenRouter’s [Free Models Router](https://openrouter.ai/docs/guides/routing/routers/free-router). It auto-picks an available free model. Pin a free variant with a `:free` suffix if you prefer (e.g. `meta-llama/llama-3.3-70b-instruct:free`).
 
 Fallback behavior when the other key is set:
 
 - **Daily quota (TPD/RPD), network errors, empty judge replies** → try the other provider once.
 - **Short TPM rate limits** → retry primary only (honors “try again in …”, capped). No fallback.
 - Each provider keeps its own model id (Groq ≠ OpenRouter naming).
-- Cross-provider failover is **opt-out** via `EVAL_JUDGE_FAILOVER=0` (default on). Failover sends case prompts to the other provider — only enable when that is acceptable.
+- Cross-provider failover is **opt-out** via `EVAL_JUDGE_FAILOVER=0` (default on). Failover sends case prompts to the other provider. Only enable it when that is acceptable.
 - Judge `max_tokens` is capped at 256 so thin free-tier balances do not 402 on reserved completion tokens.
 - Score-cache keys include the failover model id when failover is enabled, so primary-only and failover scores do not collide.
 
@@ -286,8 +286,8 @@ and SQLite run record are authoritative.
 | `TREND_DB_PATH` | `./veris_trends.db` | Trend SQLite path. |
 | `VERIS_MAX_RUN_COST_USD` | unset | Optional estimated judge-cost ceiling. |
 
-The remaining gate knobs—baseline window, minimum samples, concurrency,
-circuit-breaker threshold, metric floors, weights, and noise bands—are
+The remaining gate knobs (baseline window, minimum samples, concurrency,
+circuit-breaker threshold, metric floors, weights, and noise bands) are
 versioned in `veris/config.py` so changes are reviewable.
 
 ## Continuous integration

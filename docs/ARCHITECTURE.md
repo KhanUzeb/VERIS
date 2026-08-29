@@ -17,7 +17,7 @@ at the [README](../README.md).
          │ load + tag filter + unique-id check
          ▼
 ┌─────────────────┐
-│  TargetFn       │  Callable[[str], str] — your agent / RAG / API
+│  TargetFn       │  Callable[[str], str]: your agent / RAG / API
 └────────┬────────┘
          │ ThreadPoolExecutor (max_workers)
          ▼
@@ -58,19 +58,19 @@ at the [README](../README.md).
 
 Two independent checks per applicable `(case, metric)`:
 
-1. **Absolute floor** — `score < MetricSpec.min_score` always fails (blocking metrics only flip the exit code).
-2. **Regression** — if enough green history exists, fail when score falls more than `band * stdev` below the case’s rolling median. Flat baselines (`stdev == 0`) use a synthetic relative stdev so `stdev_band_override` still applies; at the default band the floor is `0.9 * median`.
+1. **Absolute floor**: `score < MetricSpec.min_score` always fails (only blocking metrics flip the exit code).
+2. **Regression**: once enough green history exists, fail when the score falls more than `band * stdev` below the case's rolling median. Flat baselines (`stdev == 0`) use a synthetic relative stdev so `stdev_band_override` still applies; at the default band the floor is `0.9 * median`.
 
 Metrics with `requires_retrieval_context` / `requires_expected_output` that the case cannot satisfy are marked **N/A** and never treated as missing blocking scores.
 
 ## Resilience
 
-- **Circuit breaker** — consecutive judge failures abort the run (bad key / outage) instead of mass false regressions; cooperative cancel stops further judge work. The CLI still writes JSON/HTML for the partial run.
-- **Score cache** — skips judge calls when inputs + metric config fingerprint are unchanged; refuses non-finite cached values.
-- **Incremental DB writes** — completed cases survive mid-run crashes; `(run, case, metric)` rows upsert under a unique index.
-- **Canonical timestamps** — trend-store rows always use UTC ISO-8601 so `ORDER BY` / prune stay consistent.
-- **Provider fallback** — Groq (`EVAL_JUDGE_MODEL`) + OpenRouter (`EVAL_OPENROUTER_MODEL`, default `openrouter/free`). Primary via `EVAL_JUDGE_PROVIDER`; the other is used on daily quota / hard failures when its key is set. Short TPM retries stay on primary (see [USER_GUIDE](USER_GUIDE.md#judge-providers-groq--openrouter)).
-- **Non-finite scores** — `NaN`/`Inf`/`None` from the judge fail the gate instead of silently passing floor checks.
+- A circuit breaker aborts the run after consecutive judge failures (bad key or outage) instead of reporting a mass false regression. A cooperative cancel stops further judge work, and the CLI still writes JSON/HTML for the partial run.
+- The score cache skips judge calls when the inputs and metric config fingerprint are unchanged, and it refuses non-finite cached values.
+- Incremental DB writes keep completed cases safe through mid-run crashes. `(run, case, metric)` rows upsert under a unique index.
+- Trend-store rows always use UTC ISO-8601 timestamps so `ORDER BY` and prune stay consistent.
+- Provider fallback covers Groq (`EVAL_JUDGE_MODEL`) and OpenRouter (`EVAL_OPENROUTER_MODEL`, default `openrouter/free`). The primary is set by `EVAL_JUDGE_PROVIDER`; the other is used on daily quota or hard failures when its key is set. Short TPM retries stay on the primary (see [USER_GUIDE](USER_GUIDE.md#judge-providers-groq--openrouter)).
+- Non-finite scores (`NaN`, `Inf`, `None`) from the judge fail the gate instead of silently passing floor checks.
 
 Hardening history and rationale: [HARDENING.md](HARDENING.md).
 
