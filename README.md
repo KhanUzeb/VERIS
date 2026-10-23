@@ -5,7 +5,6 @@
 
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)
 [![Docs](https://img.shields.io/badge/docs-user%20guide-informational)](docs/USER_GUIDE.md)
 
 **Veris** is an agent-agnostic, local LLM evaluation and regression testing
